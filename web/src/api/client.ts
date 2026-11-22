@@ -50,7 +50,11 @@ export const api = {
     apiFetch<{ store: Store }>('/api/stores', { method: 'POST', body: JSON.stringify(payload) }),
   updateStore: (id: string, payload: Partial<Store>) =>
     apiFetch<{ store: Store }>(`/api/stores/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
-  deleteStore: (id: string) => apiFetch<{ deleted: boolean }>(`/api/stores/${id}`, { method: 'DELETE' }),
+  deleteStore: (id: string) =>
+    apiFetch<{ deleted: boolean }>(`/api/stores/${id}`, {
+      method: 'DELETE',
+      headers: { 'X-MachiEats-Action': 'confirm' },
+    }),
   addMenuItem: (storeId: string, payload: Partial<MenuItem>) =>
     apiFetch<{ item: MenuItem }>(`/api/stores/${storeId}/menu`, {
       method: 'POST',
@@ -113,22 +117,28 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ driver_id }),
     }),
-  proxyStartOrdering: (id: string) =>
-    apiFetch<{ order: Order }>(`/api/orders/${id}/proxy-start-ordering`, { method: 'POST', body: '{}' }),
+  proxyStartOrdering: (id: string, driver_id?: string) =>
+    apiFetch<{ order: Order }>(`/api/orders/${id}/proxy-start-ordering`, {
+      method: 'POST',
+      body: JSON.stringify({ driver_id }),
+    }),
   proxyConfirmPurchase: (
     id: string,
-    payload: { actual_subtotal: number; receipt_image_url?: string; receipt_note?: string }
+    payload: { actual_subtotal: number; receipt_image_url?: string; receipt_note?: string; driver_id?: string }
   ) =>
     apiFetch<{ order: Order }>(`/api/orders/${id}/proxy-confirm-purchase`, {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  driverPickup: (id: string) =>
-    apiFetch<{ order: Order }>(`/api/orders/${id}/driver-pickup`, { method: 'POST', body: '{}' }),
-  driverDeliver: (id: string, dropoff_image_url?: string) =>
+  driverPickup: (id: string, driver_id?: string) =>
+    apiFetch<{ order: Order }>(`/api/orders/${id}/driver-pickup`, {
+      method: 'POST',
+      body: JSON.stringify({ driver_id }),
+    }),
+  driverDeliver: (id: string, dropoff_image_url?: string, driver_id?: string) =>
     apiFetch<{ order: Order }>(`/api/orders/${id}/driver-deliver`, {
       method: 'POST',
-      body: JSON.stringify({ dropoff_image_url }),
+      body: JSON.stringify({ dropoff_image_url, driver_id }),
     }),
   cancelOrder: (id: string, payload: { reason: string; actor_role: string; actor_name: string }) =>
     apiFetch<{ order: Order }>(`/api/orders/${id}/cancel`, {
@@ -167,7 +177,11 @@ export const api = {
 
   // Admin
   getAnalytics: () => apiFetch<AdminAnalytics>('/api/admin/analytics'),
-  resetDemo: () => apiFetch<{ ok: boolean; message: string }>('/api/admin/reset-demo', { method: 'POST' }),
+  resetDemo: () =>
+    apiFetch<{ ok: boolean; message: string }>('/api/admin/reset-demo', {
+      method: 'POST',
+      headers: { 'X-MachiEats-Action': 'confirm' },
+    }),
 };
 
 export function formatYen(amount: number | null | undefined): string {

@@ -111,6 +111,7 @@ export function OrderChat({
       <form className="chat-form" onSubmit={onSubmit}>
         <input
           className="input"
+          aria-label="チャットメッセージ入力"
           placeholder="メッセージを入力..."
           value={text}
           onChange={(e) => setText(e.target.value)}

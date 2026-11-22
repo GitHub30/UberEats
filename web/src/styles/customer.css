@@ -239,9 +239,23 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  cursor: pointer;
   box-shadow: var(--shadow-xs);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.store-card-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  cursor: pointer;
 }
 
 .store-card:hover {
@@ -601,7 +615,10 @@
 }
 
 .receipt-preview-img {
-  max-width: 240px;
+  width: 240px;
+  max-width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-sm);

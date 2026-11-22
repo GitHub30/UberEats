@@ -67,9 +67,10 @@ export function DriverApp() {
   }, []);
 
   useEffect(() => {
-    void refreshData(selectedDriverId);
+    refreshData(selectedDriverId).catch(() => {});
     const timer = window.setInterval(() => {
-      void refreshData(selectedDriverId);
+      if (document.hidden || !navigator.onLine) return;
+      refreshData(selectedDriverId).catch(() => {});
     }, 3500);
     return () => window.clearInterval(timer);
   }, [selectedDriverId, refreshData]);
@@ -110,7 +111,7 @@ export function DriverApp() {
   const handleProxyStartOrdering = async (order: Order) => {
     setBusyId(order.id);
     try {
-      await api.proxyStartOrdering(order.id);
+      await api.proxyStartOrdering(order.id, selectedDriverId);
       setActualPriceMap((prev) => ({ ...prev, [order.id]: String(order.estimated_subtotal) }));
       notify('店舗到着を記録しました。持ち帰り注文を行ってください。', 'success');
       await refreshData(selectedDriverId);
@@ -157,7 +158,6 @@ export function DriverApp() {
     try {
       const price = Math.max(0, Math.round(Number(actualPriceMap[order.id] ?? order.estimated_subtotal)));
       let receiptUrl = receiptUrlMap[order.id];
-      // If user didn't upload one manually, auto-generate & upload receipt so KV always stores proof!
       if (!receiptUrl) {
         const dataUrl = generateReceiptDataUrl(order, price);
         const uploaded = await api.uploadMedia(dataUrl);
@@ -168,6 +168,7 @@ export function DriverApp() {
         actual_subtotal: price,
         receipt_image_url: receiptUrl,
         receipt_note: receiptNoteMap[order.id] || '店頭でテイクアウト注文・代理決済完了',
+        driver_id: selectedDriverId,
       });
       notify(`実費 ${formatYen(price)} とレシートを登録しました！出来上がりを待ちます。`, 'success');
       await refreshData(selectedDriverId);
@@ -181,7 +182,7 @@ export function DriverApp() {
   const handlePickup = async (order: Order) => {
     setBusyId(order.id);
     try {
-      await api.driverPickup(order.id);
+      await api.driverPickup(order.id, selectedDriverId);
       notify('商品を受け取りました！お届け先へ配達を開始します。', 'success');
       await refreshData(selectedDriverId);
     } catch (err) {
@@ -209,7 +210,7 @@ export function DriverApp() {
   const handleDeliver = async (order: Order) => {
     setBusyId(order.id);
     try {
-      await api.driverDeliver(order.id);
+      await api.driverDeliver(order.id, undefined, selectedDriverId);
       notify(`配達完了！報酬 ${formatYen(order.driver_payout)} が確定しました。`, 'success');
       await refreshData(selectedDriverId);
     } catch (err) {
@@ -220,7 +221,7 @@ export function DriverApp() {
   };
 
   return (
-    <div className="driver-shell">
+    <main className="driver-shell">
       <div className="driver-container animate-fade">
         {/* Driver Top Bar */}
         <div className="driver-topbar">
@@ -399,10 +400,10 @@ export function DriverApp() {
                     {/* Proxy Takeout Detailed Checklist & Receipt Upload */}
                     {isProxy && (
                       <div className="proxy-script-box">
-                        <h4>
-                          <Receipt size={15} style={{ verticalAlign: '-2px', marginRight: 5 }} />
+                        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#fcd34d' }}>
+                          <Receipt size={15} style={{ verticalAlign: '-2px', marginRight: 5 }} aria-hidden="true" />
                           店頭テイクアウト代理注文リスト（法人カード決済）
-                        </h4>
+                        </h3>
                         {order.takeout_notes && (
                           <div style={{ fontSize: 12.5, color: '#fde68a', lineHeight: 1.55 }}>
                             <strong>店舗攻略ヒント：</strong>
@@ -449,10 +450,14 @@ export function DriverApp() {
                           >
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                               <div>
-                                <label style={{ display: 'block', fontSize: 12, color: '#fcd34d', fontWeight: 700, marginBottom: 4 }}>
+                                <label
+                                  htmlFor={`actual-price-${order.id}`}
+                                  style={{ display: 'block', fontSize: 12, color: '#fcd34d', fontWeight: 700, marginBottom: 4 }}
+                                >
                                   レシート実費合計（税込・円）
                                 </label>
                                 <input
+                                  id={`actual-price-${order.id}`}
                                   type="number"
                                   className="driver-input tabular-nums"
                                   value={priceInput}
@@ -462,10 +467,14 @@ export function DriverApp() {
                                 />
                               </div>
                               <div>
-                                <label style={{ display: 'block', fontSize: 12, color: '#fcd34d', fontWeight: 700, marginBottom: 4 }}>
+                                <label
+                                  htmlFor={`receipt-note-${order.id}`}
+                                  style={{ display: 'block', fontSize: 12, color: '#fcd34d', fontWeight: 700, marginBottom: 4 }}
+                                >
                                   購入メモ（容器代・代替など）
                                 </label>
                                 <input
+                                  id={`receipt-note-${order.id}`}
                                   className="driver-input"
                                   placeholder="例：容器代+100円込み、約10分待ち"
                                   value={receiptNoteMap[order.id] || ''}
@@ -478,7 +487,7 @@ export function DriverApp() {
 
                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                               <label className="btn btn-drv-ghost btn-sm" style={{ cursor: 'pointer' }}>
-                                <Camera size={14} />
+                                <Camera size={14} aria-hidden="true" />
                                 {uploadingId === order.id ? '保存中...' : 'レシート写真を選択'}
                                 <input
                                   type="file"
@@ -493,7 +502,7 @@ export function DriverApp() {
                                 disabled={uploadingId === order.id}
                                 onClick={() => void handleGenerateDemoReceipt(order)}
                               >
-                                <Sparkles size={14} />
+                                <Sparkles size={14} aria-hidden="true" />
                                 テスト用レシート写真を撮影（KV保存）
                               </button>
                             </div>
@@ -503,7 +512,9 @@ export function DriverApp() {
                                 <img
                                   src={previewReceipt}
                                   alt="アップロード済みレシート"
-                                  style={{ width: 92, borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)' }}
+                                  width={92}
+                                  height={122}
+                                  style={{ width: 92, aspectRatio: '3 / 4', objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)' }}
                                 />
                                 <span style={{ fontSize: 12, color: '#6ee7b7', fontWeight: 700 }}>
                                   Cloudflare KV にレシート画像を保存済み
@@ -517,7 +528,7 @@ export function DriverApp() {
                               disabled={busyId === order.id || uploadingId === order.id}
                               onClick={() => void handleProxyConfirmPurchase(order)}
                             >
-                              <Receipt size={17} />
+                              <Receipt size={17} aria-hidden="true" />
                               代理決済完了・レシートを送信（実費 {formatYen(Number(priceInput || 0))}）
                             </button>
                           </div>
@@ -548,7 +559,7 @@ export function DriverApp() {
                             className="btn btn-drv-ghost btn-sm"
                             onClick={() => void handleMoveCloserGps(order)}
                           >
-                            <Navigation size={14} />
+                            <Navigation size={14} aria-hidden="true" />
                             GPS移動シミュレーション
                           </button>
                           <button
@@ -571,7 +582,7 @@ export function DriverApp() {
                           disabled={busyId === order.id}
                           onClick={() => void handlePickup(order)}
                         >
-                          <PackageCheck size={18} />
+                          <PackageCheck size={18} aria-hidden="true" />
                           商品を受け取って配達開始
                         </button>
                       )}
@@ -586,22 +597,9 @@ export function DriverApp() {
                             color: '#93c5fd',
                             fontSize: 13,
                             fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: 10,
-                            flexWrap: 'wrap',
                           }}
                         >
-                          <span>店舗で調理中です。受け渡し準備OKになるまでお待ちください。</span>
-                          <button
-                            type="button"
-                            className="btn btn-drv-ghost btn-sm"
-                            disabled={busyId === order.id}
-                            onClick={() => void handlePickup(order)}
-                          >
-                            商品受取済みとして出発
-                          </button>
+                          店舗で調理中です。店舗アプリ側で「調理完了・受け渡し準備OK」になると受け取りボタンが有効になります。
                         </div>
                       )}
 
@@ -773,6 +771,6 @@ export function DriverApp() {
           </aside>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

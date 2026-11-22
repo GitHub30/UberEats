@@ -1,0 +1,81 @@
+{
+  "id": "/UberEats/",
+  "name": "MachiEats — 提携店も非提携の持ち帰り代理注文も届くフードデリバリー",
+  "short_name": "MachiEats",
+  "description": "公式提携レストランとデリバリー非提携店舗（ドライバー店頭持ち帰り代理注文）の両方に対応するフードデリバリーPWA。注文・ドライバー・店舗受注・管理画面の4アプリを統合。",
+  "start_url": "/UberEats/",
+  "scope": "/UberEats/",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "ja",
+  "dir": "ltr",
+  "theme_color": "#141413",
+  "background_color": "#faf9f6",
+  "categories": ["food", "shopping", "lifestyle"],
+  "icons": [
+    {
+      "src": "/UberEats/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/UberEats/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/UberEats/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/UberEats/screenshots/desktop.jpg",
+      "sizes": "1280x720",
+      "type": "image/jpeg",
+      "form_factor": "wide",
+      "label": "MachiEats デスクトップ画面 — 公式提携店と非提携代理持ち帰り注文"
+    },
+    {
+      "src": "/UberEats/screenshots/mobile.jpg",
+      "sizes": "720x1280",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "MachiEats モバイル画面 — 提携店・街の非提携名店からデリバリー"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "エンドユーザー注文アプリ",
+      "short_name": "注文する",
+      "description": "提携店・非提携（持ち帰り代理注文）のお店から注文",
+      "url": "/UberEats/customer/",
+      "icons": [{ "src": "/UberEats/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "ドライバー配達アプリ",
+      "short_name": "配達する",
+      "description": "通常配達・店頭代理注文の受諾とレシート精算",
+      "url": "/UberEats/driver/",
+      "icons": [{ "src": "/UberEats/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "店舗受注アプリ",
+      "short_name": "店舗POS",
+      "description": "公式提携店舗の新規注文受注・売り切れ管理",
+      "url": "/UberEats/merchant/",
+      "icons": [{ "src": "/UberEats/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "運営管理画面",
+      "short_name": "管理画面",
+      "description": "GMV分析・注文監視・レシート監査・手数料設定",
+      "url": "/UberEats/admin/",
+      "icons": [{ "src": "/UberEats/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { X, Star, MapPin, Clock, Plus, Info, ShoppingBag } from 'lucide-react';
 import { api, formatYen, resolveAssetUrl } from '../../api/client';
 import { OrderTypeBadge } from '../../components/StatusBadge';
+import { useModalA11y } from '../../hooks/useModalA11y';
 import type { CartItem, MenuItem, Store } from '../../types';
 
 interface StoreDetailModalProps {
@@ -11,13 +12,13 @@ interface StoreDetailModalProps {
 }
 
 export function StoreDetailModal({ storeId, onClose, onAddToCart }: StoreDetailModalProps) {
+  const dialogRef = useModalA11y(onClose);
   const [store, setStore] = useState<Store | null>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, Record<string, { label: string; price: number }>>>({});
   const [itemNotes, setItemNotes] = useState<Record<string, string>>({});
 
-  // Custom free-form item for non-partnered stores
   const [customName, setCustomName] = useState('');
   const [customPrice, setCustomPrice] = useState('1000');
   const [customNote, setCustomNote] = useState('');
@@ -31,7 +32,6 @@ export function StoreDetailModal({ storeId, onClose, onAddToCart }: StoreDetailM
         if (!active) return;
         setStore(res.store);
         setMenu(res.menu);
-        // Initialize default option selections
         const defaults: Record<string, Record<string, { label: string; price: number }>> = {};
         for (const m of res.menu) {
           defaults[m.id] = {};
@@ -89,7 +89,15 @@ export function StoreDetailModal({ storeId, onClose, onAddToCart }: StoreDetailM
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="store-detail-modal-title"
+      >
         {loading || !store ? (
           <div className="modal-body" style={{ textAlign: 'center', padding: 48 }}>
             店舗情報を読み込み中...
@@ -116,7 +124,9 @@ export function StoreDetailModal({ storeId, onClose, onAddToCart }: StoreDetailM
                 {!store.is_open && <span className="badge badge-danger">営業時間外</span>}
               </div>
 
-              <h2 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 800 }}>{store.name}</h2>
+              <h2 id="store-detail-modal-title" style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 800 }}>
+                {store.name}
+              </h2>
               <p style={{ margin: '0 0 12px', fontSize: 13.5, color: 'var(--ink-secondary)' }}>
                 {store.description}
               </p>

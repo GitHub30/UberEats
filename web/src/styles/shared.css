@@ -5,6 +5,7 @@
   position: sticky;
   top: 0;
   z-index: 90;
+  padding-top: env(safe-area-inset-top, 0px);
   background: #141413;
   color: #f5f4f0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -779,7 +780,7 @@
   padding: 28px 30px;
 }
 
-.proxy-flow-band h3 {
+.proxy-flow-band h2 {
   margin: 0 0 8px;
   font-size: 19px;
   font-weight: 800;
@@ -797,7 +798,7 @@
   background: #ffffff;
   border-radius: var(--radius-md);
   padding: 16px;
-  border: 1px solid rgba(200, 90, 23, 0.16);
+  border: 1px solid rgba(179, 77, 14, 0.16);
 }
 
 .proxy-step-num {
@@ -814,17 +815,55 @@
   margin-bottom: 8px;
 }
 
-.proxy-flow-step h4 {
+.proxy-flow-step h3 {
   margin: 0 0 4px;
-  font-size: 14px;
+  font-size: 14.5px;
   font-weight: 800;
+  color: var(--ink-primary);
 }
 
 .proxy-flow-step p {
   margin: 0;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--ink-secondary);
   line-height: 1.55;
+}
+
+.portal-stores-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.portal-store-mini {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.portal-store-mini:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.portal-store-mini img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.portal-store-mini-body {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 @media (max-width: 980px) {
@@ -832,7 +871,8 @@
     grid-template-columns: 1fr;
   }
   .portal-apps-grid,
-  .proxy-flow-steps {
+  .proxy-flow-steps,
+  .portal-stores-strip {
     grid-template-columns: repeat(2, 1fr);
   }
 }
@@ -842,10 +882,127 @@
     padding: 28px 22px;
   }
   .portal-apps-grid,
-  .proxy-flow-steps {
+  .proxy-flow-steps,
+  .portal-stores-strip {
     grid-template-columns: 1fr;
   }
-  .switcher-meta {
-    display: none;
+  .switcher-meta-secondary {
+    display: none !important;
   }
+}
+
+/* =========================================================
+   PWA Offline / Update Banners & AEO/GEO Sections
+   ========================================================= */
+.pwa-banner {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pwa-banner-offline {
+  background: #fef2f2;
+  color: #991b1b;
+  border-bottom: 1px solid #fecaca;
+}
+
+.pwa-banner-update {
+  background: var(--brand-green-soft);
+  color: var(--brand-green);
+  border-bottom: 1px solid var(--brand-green-border);
+}
+
+.compare-table-card {
+  margin-top: 32px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 24px 26px;
+  box-shadow: var(--shadow-xs);
+}
+
+.compare-table-card h2 {
+  margin: 0 0 14px;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faq-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  box-shadow: var(--shadow-xs);
+}
+
+.faq-item summary {
+  font-weight: 800;
+  font-size: 14.5px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.faq-item summary::after {
+  content: '+';
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--brand-green);
+}
+
+.faq-item[open] summary::after {
+  content: '−';
+}
+
+.faq-item p {
+  margin: 10px 0 2px;
+  font-size: 13.5px;
+  color: var(--ink-secondary);
+  line-height: 1.7;
+}
+
+.site-footer {
+  margin-top: 44px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+
+.site-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.site-footer-links a {
+  color: var(--ink-secondary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.site-footer-links a:hover {
+  color: var(--brand-green);
+  text-decoration: underline;
 }

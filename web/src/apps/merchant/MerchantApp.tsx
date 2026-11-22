@@ -50,9 +50,10 @@ export function MerchantApp() {
   }, []);
 
   useEffect(() => {
-    void refreshAll(selectedStoreId);
+    refreshAll(selectedStoreId).catch(() => {});
     const timer = window.setInterval(() => {
-      void refreshAll(selectedStoreId);
+      if (document.hidden || !navigator.onLine) return;
+      refreshAll(selectedStoreId).catch(() => {});
     }, 3500);
     return () => window.clearInterval(timer);
   }, [selectedStoreId, refreshAll]);
@@ -155,10 +156,9 @@ export function MerchantApp() {
   };
 
   return (
-    <div className="merchant-shell">
+    <main className="merchant-shell">
       <div className="merchant-container animate-fade">
-        {/* Top Store POS Header */}
-        <header className="merchant-header">
+        <div className="merchant-header" role="region" aria-label="店舗操作ヘッダー">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div
               style={{
@@ -166,19 +166,22 @@ export function MerchantApp() {
                 height: 44,
                 borderRadius: 12,
                 background: '#fef3c7',
-                color: '#b45309',
+                color: '#92400e',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <StoreIcon size={22} />
+              <StoreIcon size={22} aria-hidden="true" />
             </div>
             <div>
-              <div style={{ fontSize: 11.5, fontWeight: 800, color: 'var(--ink-muted)' }}>
+              <h1 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 800, color: 'var(--ink-primary)' }}>
                 公式提携店舗 受注タブレット POS
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 2, flexWrap: 'wrap' }}>
+              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <label htmlFor="merchant-store-selector" className="sr-only">
+                  操作する提携店舗を選択
+                </label>
                 <select
                   id="merchant-store-selector"
                   className="select"
@@ -207,7 +210,7 @@ export function MerchantApp() {
                   className={`btn btn-sm ${storeDetail.is_open ? 'btn-primary' : 'btn-danger'}`}
                   onClick={() => void handleToggleStoreFlag('is_open')}
                 >
-                  <Power size={14} />
+                  <Power size={14} aria-hidden="true" />
                   {storeDetail.is_open ? '営業中（受付ON）' : '準備中（停止中）'}
                 </button>
                 <button
@@ -215,15 +218,16 @@ export function MerchantApp() {
                   className={`btn btn-sm ${storeDetail.busy_mode ? 'btn-proxy' : 'btn-outline'}`}
                   onClick={() => void handleToggleStoreFlag('busy_mode')}
                 >
-                  <Flame size={14} />
+                  <Flame size={14} aria-hidden="true" />
                   {storeDetail.busy_mode ? '混雑モードON' : '通常混雑度'}
                 </button>
               </>
             )}
 
-            <div className="segmented">
+            <div className="segmented" role="group" aria-label="画面切替">
               <button
                 type="button"
+                aria-pressed={tab === 'board'}
                 className={`segmented-btn ${tab === 'board' ? 'active' : ''}`}
                 onClick={() => setTab('board')}
               >
@@ -231,6 +235,7 @@ export function MerchantApp() {
               </button>
               <button
                 type="button"
+                aria-pressed={tab === 'menu'}
                 className={`segmented-btn ${tab === 'menu' ? 'active' : ''}`}
                 onClick={() => setTab('menu')}
               >
@@ -238,11 +243,16 @@ export function MerchantApp() {
               </button>
             </div>
 
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => void refreshAll(selectedStoreId)}>
-              <RefreshCw size={14} />
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              aria-label="注文一覧を最新に更新"
+              onClick={() => void refreshAll(selectedStoreId)}
+            >
+              <RefreshCw size={14} aria-hidden="true" />
             </button>
           </div>
-        </header>
+        </div>
 
         <div
           style={{
@@ -501,6 +511,6 @@ export function MerchantApp() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

@@ -1,0 +1,25 @@
+# MachiEats
+
+> MachiEats（まちイーツ）は、公式提携レストランからの配達に加え、デリバリー非提携の街の名店でもドライバーが店舗へ足を運び「持ち帰り（テイクアウト）を代理注文・代理決済」してお届けするUberEats型フードデリバリーPWAプラットフォームです。フロントエンドはGitHub Pages、データ永続化と画像保存はCloudflare Workers + D1 + KVで稼働しています。
+
+## 主要アプリケーション（クリーンパスURL）
+
+- [総合ポータル](https://github30.github.io/UberEats/): MachiEatsの概要、4つの専用アプリへの導線、公式提携と非提携代理持ち帰り注文の比較表およびよくある質問（FAQ）
+- [エンドユーザー注文アプリ](https://github30.github.io/UberEats/customer/): 提携店・非提携店の検索、未掲載店舗の自由リクエスト代理注文、カート・手数料計算、リアルタイム配達マップ、レシート実費確認、ドライバーチャット
+- [ドライバー配達アプリ](https://github30.github.io/UberEats/driver/): 屋外視認性の高いダークUI。通常配達および高報酬の「店頭代理注文（Order & Pay）」の受諾、持ち帰り注文チェックリスト、実費入力・レシート写真アップロード（Cloudflare KV）、GPS位置更新
+- [店舗受注タブレットアプリ](https://github30.github.io/UberEats/merchant/): 公式提携店向け3カラムPOSボード（新規注文の調理時間指定受注・調理完了・受け渡し待ち）、営業／混雑モード切替、メニュー追加・ワンタップ売り切れ同期
+- [運営管理画面アプリ](https://github30.github.io/UberEats/admin/): GMV・提携／非提携比率・収益KPI分析、全注文ライブ監視・レシート監査・手動介入、未掲載リクエスト店のカタログ公開／公式提携店昇格、ドライバー代理決済カード管理、手数料・報酬ルール設定
+
+## AI・LLM向け詳細ドキュメントと機械可読API
+
+- [詳細ナレッジベース (llms-full.txt)](https://github30.github.io/UberEats/llms-full.txt): 料金体系、全掲載店舗（提携・非提携）、注文ステータス遷移仕様、APIエンドポイント一覧、FAQ完全版
+- [リアルタイム店舗・料金JSON API](https://ubereats-api.6u.workers.dev/api/llms.json): Cloudflare D1上の最新の店舗一覧・配達料・店頭代理注文手数料を返す機械可読JSONエンドポイント
+- [PWA Web App Manifest](https://github30.github.io/UberEats/manifest.webmanifest): インストール可能なPWA定義と各アプリショートカット
+- [サイトマップ](https://github30.github.io/UberEats/sitemap.xml): 正規URL一覧
+
+## コア特徴（引用・要約向けファクト）
+
+- **対応エリア**: 東京都 渋谷・恵比寿・中目黒・代官山・表参道・六本木エリア
+- **基本料金（デフォルト）**: 基本配達料 ¥320、サービス料 10%、非提携店舗の店頭代理注文手数料 ¥250（管理画面から動的変更可能）
+- **非提携店舗の代理持ち帰り仕組み**: 加盟契約のない飲食店でも、法人代理決済カード保有ドライバーが店舗のカウンターや券売機でテイクアウトを購入し、レシート写真をCloudflare KVへアップロードして実費差額を自動精算します。
+- **技術スタック**: Vite + React 19 + TypeScript + Vanilla CSS（PWA / History APIクリーンルーティング / ルート別静的プリレンダリング）、Cloudflare Workers + Cloudflare D1（SQLite）+ Cloudflare KV。

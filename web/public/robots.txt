@@ -1,0 +1,38 @@
+# MachiEats robots.txt (SEO / AEO / GEO / AIO / LLMO Optimized)
+# LLMs.txt: https://github30.github.io/UberEats/llms.txt
+# Full LLMs Knowledge Base: https://github30.github.io/UberEats/llms-full.txt
+
+User-agent: *
+Allow: /UberEats/
+
+User-agent: Googlebot
+Allow: /UberEats/
+
+User-agent: Bingbot
+Allow: /UberEats/
+
+User-agent: OAI-SearchBot
+Allow: /UberEats/
+
+User-agent: GPTBot
+Allow: /UberEats/
+
+User-agent: ChatGPT-User
+Allow: /UberEats/
+
+User-agent: ClaudeBot
+Allow: /UberEats/
+
+User-agent: Claude-Web
+Allow: /UberEats/
+
+User-agent: PerplexityBot
+Allow: /UberEats/
+
+User-agent: Applebot
+Allow: /UberEats/
+
+User-agent: Google-Extended
+Allow: /UberEats/
+
+Sitemap: https://github30.github.io/UberEats/sitemap.xml

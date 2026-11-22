@@ -9,10 +9,12 @@ import {
   Sparkles,
   Store as StoreIcon,
   ClipboardList,
+  HelpCircle,
 } from 'lucide-react';
 import { api, formatYen, resolveAssetUrl } from '../../api/client';
 import { OrderTypeBadge } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toast';
+import { FAQ_ENTRIES } from '../../seo/routes';
 import type { CartItem, Order, PlatformSettings, Store } from '../../types';
 import { StoreDetailModal } from './StoreDetailModal';
 import { CustomStoreModal } from './CustomStoreModal';
@@ -33,7 +35,10 @@ export function CustomerApp() {
   const [category, setCategory] = useState('すべて');
   const [search, setSearch] = useState('');
 
-  const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
+  const [activeStoreId, setActiveStoreId] = useState<string | null>(() => {
+    const sp = new URLSearchParams(window.location.search);
+    return sp.get('store');
+  });
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showCart, setShowCart] = useState(false);
 
@@ -127,15 +132,18 @@ export function CustomerApp() {
 
   return (
     <div>
-      <header className="cust-header">
+      <div className="cust-header" role="region" aria-label="検索・配達先バー">
         <div className="cust-header-inner">
           <div className="cust-address-pill" title="配達先住所（カート画面で変更可能）">
-            <MapPin size={15} color="#068449" />
+            <MapPin size={15} color="#047843" aria-hidden="true" />
             <span>{deliveryAddress.slice(0, 22)}{deliveryAddress.length > 22 ? '…' : ''}</span>
           </div>
 
           <div className="cust-search-wrap">
-            <Search size={16} className="cust-search-icon" />
+            <Search size={16} className="cust-search-icon" aria-hidden="true" />
+            <label htmlFor="customer-search-input" className="sr-only">
+              お店・ジャンル・エリアで検索
+            </label>
             <input
               id="customer-search-input"
               className="cust-search-input"
@@ -158,7 +166,7 @@ export function CustomerApp() {
                 void fetchAll();
               }}
             >
-              <ClipboardList size={15} />
+              <ClipboardList size={15} aria-hidden="true" />
               注文状況
               {activeOrdersCount > 0 && (
                 <span className="badge badge-partner" style={{ padding: '2px 7px', fontSize: 11 }}>
@@ -173,13 +181,13 @@ export function CustomerApp() {
               className="btn btn-primary btn-sm"
               onClick={() => setShowCart(true)}
             >
-              <ShoppingBag size={15} />
+              <ShoppingBag size={15} aria-hidden="true" />
               カート ({cartCount})
               {cartCount > 0 && <span className="tabular-nums">・{formatYen(cartSubtotal)}</span>}
             </button>
           </div>
         </div>
-      </header>
+      </div>
 
       <main className="cust-main">
         {view === 'orders' ? (
@@ -187,7 +195,7 @@ export function CustomerApp() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>リアルタイム注文状況・履歴</h1>
               <button type="button" className="btn btn-outline btn-sm" onClick={() => setView('browse')}>
-                <StoreIcon size={15} />
+                <StoreIcon size={15} aria-hidden="true" />
                 お店一覧に戻る
               </button>
             </div>
@@ -202,7 +210,15 @@ export function CustomerApp() {
           <div className="animate-fade">
             <section className="cust-promo-grid">
               <div className="cust-hero-card">
-                <img src={resolveAssetUrl('images/hero.webp')} alt="おすすめグルメ" className="cust-hero-bg" />
+                <img
+                  src={resolveAssetUrl('images/hero.webp')}
+                  alt="東京のおすすめデリバリーグルメ"
+                  className="cust-hero-bg"
+                  width={1376}
+                  height={768}
+                  fetchPriority="high"
+                  decoding="async"
+                />
                 <div className="cust-hero-overlay">
                   <h1>提携店も、街の非提携の名店も。</h1>
                   <p>
@@ -213,8 +229,8 @@ export function CustomerApp() {
 
               <div className="cust-unlisted-cta">
                 <div>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: '#c85a17', marginBottom: 8 }}>
-                    <Sparkles size={15} />
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: '#923d0a', marginBottom: 8 }}>
+                    <Sparkles size={15} aria-hidden="true" />
                     どんなお店でもテイクアウト代行
                   </div>
                   <h2>載っていないお店も、ドライバーが買いに行きます</h2>
@@ -228,16 +244,17 @@ export function CustomerApp() {
                   className="btn btn-proxy btn-block"
                   onClick={() => setShowCustomModal(true)}
                 >
-                  <Receipt size={16} />
+                  <Receipt size={16} aria-hidden="true" />
                   掲載外のお店を代理注文する
                 </button>
               </div>
             </section>
 
             <div className="cust-filters-bar">
-              <div className="segmented" role="tablist" aria-label="提携種別フィルタ">
+              <div className="segmented" role="group" aria-label="提携種別フィルタ">
                 <button
                   type="button"
+                  aria-pressed={partnerFilter === 'all'}
                   className={`segmented-btn ${partnerFilter === 'all' ? 'active' : ''}`}
                   onClick={() => setPartnerFilter('all')}
                 >
@@ -245,6 +262,7 @@ export function CustomerApp() {
                 </button>
                 <button
                   type="button"
+                  aria-pressed={partnerFilter === '1'}
                   className={`segmented-btn ${partnerFilter === '1' ? 'active' : ''}`}
                   onClick={() => setPartnerFilter('1')}
                 >
@@ -252,6 +270,7 @@ export function CustomerApp() {
                 </button>
                 <button
                   type="button"
+                  aria-pressed={partnerFilter === '0'}
                   className={`segmented-btn seg-proxy ${partnerFilter === '0' ? 'active' : ''}`}
                   onClick={() => setPartnerFilter('0')}
                 >
@@ -267,11 +286,12 @@ export function CustomerApp() {
               )}
             </div>
 
-            <div className="category-strip">
+            <div className="category-strip" role="group" aria-label="ジャンル絞り込み">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   type="button"
+                  aria-pressed={category === cat}
                   className={`cat-chip ${category === cat ? 'active' : ''}`}
                   onClick={() => setCategory(cat)}
                 >
@@ -280,56 +300,95 @@ export function CustomerApp() {
               ))}
             </div>
 
-            {loading ? (
-              <div style={{ textAlign: 'center', padding: 48, color: 'var(--ink-muted)' }}>お店を読み込み中...</div>
-            ) : filteredStores.length === 0 ? (
-              <div className="admin-card" style={{ textAlign: 'center', padding: 40 }}>
-                <p style={{ margin: '0 0 12px', fontWeight: 700 }}>条件に一致するお店が見つかりませんでした</p>
-                <button type="button" className="btn btn-proxy btn-sm" onClick={() => setShowCustomModal(true)}>
-                  お気に入りのお店を代理注文リクエストする
-                </button>
-              </div>
-            ) : (
-              <div className="store-grid">
-                {filteredStores.map((store) => (
-                  <article
-                    key={store.id}
-                    className={`store-card ${!store.is_open ? 'closed' : ''}`}
-                    onClick={() => setActiveStoreId(store.id)}
-                  >
-                    <div className="store-card-media">
-                      <img src={resolveAssetUrl(store.image_url)} alt={store.name} loading="lazy" />
-                      <div className="store-card-badges">
-                        <OrderTypeBadge isPartner={store.is_partner} />
-                        {!store.is_open && <span className="badge badge-danger">準備中</span>}
-                        {store.is_open && store.busy_mode && <span className="badge badge-warn">混雑中</span>}
-                      </div>
-                    </div>
+            <section aria-labelledby="catalog-list-heading">
+              <h2 id="catalog-list-heading" className="sr-only">
+                掲載レストラン一覧（公式提携・非提携代理持ち帰り対応）
+              </h2>
 
-                    <div className="store-card-body">
-                      <div className="store-card-title-row">
-                        <h3 className="store-card-title">{store.name}</h3>
-                        <span className="store-rating-pill tabular-nums">
-                          <Star size={12} fill="#f59e0b" color="#f59e0b" />
-                          {store.rating.toFixed(1)}
-                        </span>
-                      </div>
-                      <div className="store-card-meta">
-                        <span>{store.area}</span>
-                        <span>•</span>
-                        <span>{store.category}</span>
-                        <span>•</span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                          <Clock size={12} />
-                          {store.avg_prep_min + 12}〜{store.avg_prep_min + 22}分
-                        </span>
-                      </div>
-                      <p className="store-card-desc">{store.description}</p>
-                    </div>
-                  </article>
+              {loading ? (
+                <div className="store-grid" aria-busy="true">
+                  {[0, 1, 2, 3].map((idx) => (
+                    <div
+                      key={idx}
+                      className="store-card"
+                      style={{ minHeight: 310, background: 'var(--bg-subtle)' }}
+                    />
+                  ))}
+                </div>
+              ) : filteredStores.length === 0 ? (
+                <div className="admin-card" style={{ textAlign: 'center', padding: 40 }}>
+                  <p style={{ margin: '0 0 12px', fontWeight: 700 }}>条件に一致するお店が見つかりませんでした</p>
+                  <button type="button" className="btn btn-proxy btn-sm" onClick={() => setShowCustomModal(true)}>
+                    お気に入りのお店を代理注文リクエストする
+                  </button>
+                </div>
+              ) : (
+                <div className="store-grid">
+                  {filteredStores.map((store) => (
+                    <article key={store.id} className={`store-card ${!store.is_open ? 'closed' : ''}`}>
+                      <button
+                        type="button"
+                        className="store-card-btn"
+                        aria-label={`${store.name}（${store.is_partner ? '公式提携店' : '非提携・代理持ち帰り'}）のメニューを開く`}
+                        onClick={() => setActiveStoreId(store.id)}
+                      >
+                        <div className="store-card-media">
+                          <img
+                            src={resolveAssetUrl(store.image_url)}
+                            alt={`${store.name}の料理写真`}
+                            width={800}
+                            height={597}
+                            loading="lazy"
+                          />
+                          <div className="store-card-badges">
+                            <OrderTypeBadge isPartner={store.is_partner} />
+                            {!store.is_open && <span className="badge badge-danger">準備中</span>}
+                            {store.is_open && store.busy_mode && <span className="badge badge-warn">混雑中</span>}
+                          </div>
+                        </div>
+
+                        <div className="store-card-body">
+                          <div className="store-card-title-row">
+                            <h3 className="store-card-title">{store.name}</h3>
+                            <span className="store-rating-pill tabular-nums">
+                              <Star size={12} fill="#d97706" color="#d97706" aria-hidden="true" />
+                              {store.rating.toFixed(1)}
+                            </span>
+                          </div>
+                          <div className="store-card-meta">
+                            <span>{store.area}</span>
+                            <span aria-hidden="true">•</span>
+                            <span>{store.category}</span>
+                            <span aria-hidden="true">•</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                              <Clock size={12} aria-hidden="true" />
+                              {store.avg_prep_min + 12}〜{store.avg_prep_min + 22}分
+                            </span>
+                          </div>
+                          <p className="store-card-desc">{store.description}</p>
+                        </div>
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Visible FAQ section matching /customer/ FAQPage JSON-LD 1:1 */}
+            <section className="faq-section" aria-labelledby="customer-faq-heading" style={{ marginTop: 42 }}>
+              <h2 id="customer-faq-heading" style={{ fontSize: 18, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 7, margin: '0 0 14px' }}>
+                <HelpCircle size={18} color="#047843" aria-hidden="true" />
+                注文・非提携代理持ち帰りに関するよくある質問
+              </h2>
+              <div className="faq-list">
+                {FAQ_ENTRIES.map((faq) => (
+                  <details key={faq.question} className="faq-item">
+                    <summary>{faq.question}</summary>
+                    <p>{faq.answer}</p>
+                  </details>
                 ))}
               </div>
-            )}
+            </section>
           </div>
         )}
       </main>

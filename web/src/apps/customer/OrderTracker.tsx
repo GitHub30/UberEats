@@ -48,6 +48,7 @@ export function OrderTracker({ orders, selectedOrderId, onSelectOrder, onRefresh
     }
     let alive = true;
     const load = () => {
+      if (document.hidden || !navigator.onLine) return;
       api
         .getOrder(activeId)
         .then((res) => {
@@ -55,7 +56,12 @@ export function OrderTracker({ orders, selectedOrderId, onSelectOrder, onRefresh
         })
         .catch(() => {});
     };
-    load();
+    api
+      .getOrder(activeId)
+      .then((res) => {
+        if (alive) setDetail(res);
+      })
+      .catch(() => {});
     const timer = window.setInterval(load, 3500);
     return () => {
       alive = false;
@@ -273,11 +279,14 @@ export function OrderTracker({ orders, selectedOrderId, onSelectOrder, onRefresh
                   </div>
                   {order.receipt_image_url && (
                     <div>
-                      <a href={order.receipt_image_url} target="_blank" rel="noreferrer">
+                      <a href={order.receipt_image_url} target="_blank" rel="noopener noreferrer">
                         <img
                           src={order.receipt_image_url}
                           alt="店頭テイクアウト購入レシート"
                           className="receipt-preview-img"
+                          width={240}
+                          height={320}
+                          loading="lazy"
                         />
                       </a>
                       <div style={{ fontSize: 11, marginTop: 4, textAlign: 'center' }}>
@@ -370,30 +379,34 @@ export function OrderTracker({ orders, selectedOrderId, onSelectOrder, onRefresh
               <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>お店の評価</div>
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 4 }} role="group" aria-label="お店の評価（1〜5つ星）">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <button
                         key={n}
                         type="button"
+                        aria-label={`お店を${n}つ星で評価`}
+                        aria-pressed={n <= storeRating}
                         onClick={() => setStoreRating(n)}
                         style={{ background: 'none', border: 'none', padding: 2 }}
                       >
-                        <Star size={20} fill={n <= storeRating ? '#f59e0b' : 'none'} color="#f59e0b" />
+                        <Star size={20} fill={n <= storeRating ? '#d97706' : 'none'} color="#d97706" aria-hidden="true" />
                       </button>
                     ))}
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>ドライバーの評価</div>
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 4 }} role="group" aria-label="ドライバーの評価（1〜5つ星）">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <button
                         key={n}
                         type="button"
+                        aria-label={`ドライバーを${n}つ星で評価`}
+                        aria-pressed={n <= driverRating}
                         onClick={() => setDriverRating(n)}
                         style={{ background: 'none', border: 'none', padding: 2 }}
                       >
-                        <Star size={20} fill={n <= driverRating ? '#068449' : 'none'} color="#068449" />
+                        <Star size={20} fill={n <= driverRating ? '#047843' : 'none'} color="#047843" aria-hidden="true" />
                       </button>
                     ))}
                   </div>

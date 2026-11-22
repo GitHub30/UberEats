@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>オフライン — MachiEats</title>
+    <meta name="robots" content="noindex" />
+    <meta name="theme-color" content="#047d48" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: #faf9f6;
+        color: #141413;
+        font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+      }
+      .card {
+        max-width: 440px;
+        width: 100%;
+        background: #ffffff;
+        border: 1px solid rgba(20, 20, 19, 0.1);
+        border-radius: 20px;
+        padding: 32px 28px;
+        text-align: center;
+        box-shadow: 0 12px 30px rgba(20, 20, 19, 0.08);
+      }
+      .mark {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: #047d48;
+        color: #fff;
+        font-weight: 800;
+        font-size: 24px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: 21px;
+        font-weight: 800;
+      }
+      p {
+        margin: 0 0 22px;
+        font-size: 14px;
+        color: #5c5b57;
+        line-height: 1.65;
+      }
+      button {
+        border: none;
+        border-radius: 12px;
+        background: #047d48;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+        padding: 12px 24px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="mark">M</div>
+      <h1>現在オフラインです</h1>
+      <p>
+        MachiEats の最新メニューやリアルタイム注文状況を取得するにはインターネット接続が必要です。通信環境をご確認のうえ再読み込みしてください。
+      </p>
+      <button type="button" onclick="window.location.reload()">再読み込みする</button>
+    </main>
+  </body>
+</html>

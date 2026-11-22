@@ -16,7 +16,132 @@ import {
 import { api, formatTime, formatYen } from '../../api/client';
 import { OrderTypeBadge, StatusBadge, vehicleLabel } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toast';
+import { useModalA11y } from '../../hooks/useModalA11y';
 import type { AdminAnalytics, Driver, Order, OrderStatus, PlatformSettings, Store } from '../../types';
+
+function AdminInspectModal({
+  order,
+  drivers,
+  overrideStatus,
+  overrideDriverId,
+  onChangeStatus,
+  onChangeDriver,
+  onClose,
+  onSave,
+}: {
+  order: Order;
+  drivers: Driver[];
+  overrideStatus: string;
+  overrideDriverId: string;
+  onChangeStatus: (v: string) => void;
+  onChangeDriver: (v: string) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  const modalRef = useModalA11y(onClose);
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div
+        ref={modalRef}
+        tabIndex={-1}
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-inspect-title"
+      >
+        <div className="modal-header">
+          <h2 id="admin-inspect-title">注文詳細・運営介入：{order.id}</h2>
+          <button type="button" className="icon-btn" onClick={onClose} aria-label="閉じる">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <OrderTypeBadge isPartner={order.store_is_partner} />
+            <StatusBadge status={order.status} orderType={order.order_type} />
+          </div>
+
+          <div style={{ fontSize: 13.5 }}>
+            <strong>店舗：</strong>
+            {order.store_name}（{order.store_address}）
+            <br />
+            <strong>お客様：</strong>
+            {order.customer_name} ／ {order.delivery_address}
+          </div>
+
+          {order.receipt_image_url && (
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
+                店頭代理購入レシート（Cloudflare KV 保存）
+              </div>
+              <a href={order.receipt_image_url} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={order.receipt_image_url}
+                  alt="店頭代理購入レシート"
+                  className="receipt-preview-img"
+                  width={240}
+                  height={320}
+                  loading="lazy"
+                />
+              </a>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="field">
+              <label htmlFor="admin-override-status" className="field-label">ステータス強制変更</label>
+              <select
+                id="admin-override-status"
+                className="select"
+                value={overrideStatus}
+                onChange={(e) => onChangeStatus(e.target.value as OrderStatus)}
+              >
+                {[
+                  'placed',
+                  'preparing',
+                  'ready_for_pickup',
+                  'driver_heading_to_store',
+                  'proxy_ordering',
+                  'proxy_waiting',
+                  'delivering',
+                  'delivered',
+                  'cancelled',
+                ].map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="admin-override-driver" className="field-label">手動ドライバー割当</label>
+              <select
+                id="admin-override-driver"
+                className="select"
+                value={overrideDriverId}
+                onChange={(e) => onChangeDriver(e.target.value)}
+              >
+                <option value="">（未割当）</option>
+                {drivers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}（{d.proxy_card_enabled ? '代理OK' : '通常'}）
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button type="button" className="btn btn-outline" onClick={onClose}>
+            閉じる
+          </button>
+          <button type="button" className="btn btn-dark" onClick={onSave}>
+            変更を適用する
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type AdminTab = 'overview' | 'orders' | 'stores' | 'drivers' | 'settings';
 
@@ -29,13 +154,11 @@ export function AdminApp() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [settings, setSettings] = useState<PlatformSettings | null>(null);
 
-  // Filters & modals
   const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'partner' | 'proxy_takeout'>('all');
   const [inspectOrder, setInspectOrder] = useState<Order | null>(null);
   const [overrideStatus, setOverrideStatus] = useState<string>('');
   const [overrideDriverId, setOverrideDriverId] = useState<string>('');
 
-  // New store form
   const [stName, setStName] = useState('');
   const [stCat, setStCat] = useState('町中華');
   const [stArea, setStArea] = useState('渋谷');
@@ -43,7 +166,6 @@ export function AdminApp() {
   const [stPartner, setStPartner] = useState(false);
   const [stNotes, setStNotes] = useState('');
 
-  // New driver form
   const [drvName, setDrvName] = useState('');
   const [drvPhone, setDrvPhone] = useState('090-3333-4444');
   const [drvVehicle, setDrvVehicle] = useState<'bicycle' | 'ebike' | 'scooter' | 'car'>('ebike');
@@ -65,9 +187,10 @@ export function AdminApp() {
   }, []);
 
   useEffect(() => {
-    void refreshAll();
+    refreshAll().catch(() => {});
     const timer = window.setInterval(() => {
-      void refreshAll();
+      if (document.hidden || !navigator.onLine) return;
+      refreshAll().catch(() => {});
     }, 5000);
     return () => window.clearInterval(timer);
   }, [refreshAll]);
@@ -428,8 +551,8 @@ export function AdminApp() {
                       </td>
                       <td>
                         {o.receipt_image_url ? (
-                          <a href={o.receipt_image_url} target="_blank" rel="noreferrer" className="badge badge-partner">
-                            <Receipt size={12} />
+                          <a href={o.receipt_image_url} target="_blank" rel="noopener noreferrer" className="badge badge-partner">
+                            <Receipt size={12} aria-hidden="true" />
                             KV画像あり
                           </a>
                         ) : (
@@ -742,93 +865,17 @@ export function AdminApp() {
         )}
       </main>
 
-      {/* Admin Order Inspection & Override Modal */}
       {inspectOrder && (
-        <div className="overlay" onClick={() => setInspectOrder(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <div className="modal-header">
-              <h2>注文詳細・運営介入：{inspectOrder.id}</h2>
-              <button type="button" className="icon-btn" onClick={() => setInspectOrder(null)}>
-                <X size={18} />
-              </button>
-            </div>
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <OrderTypeBadge isPartner={inspectOrder.store_is_partner} />
-                <StatusBadge status={inspectOrder.status} orderType={inspectOrder.order_type} />
-              </div>
-
-              <div style={{ fontSize: 13.5 }}>
-                <strong>店舗：</strong>
-                {inspectOrder.store_name}（{inspectOrder.store_address}）
-                <br />
-                <strong>お客様：</strong>
-                {inspectOrder.customer_name} ／ {inspectOrder.delivery_address}
-              </div>
-
-              {inspectOrder.receipt_image_url && (
-                <div>
-                  <div style={{ fontSize: 12.5, fontWeight: 700, marginBottom: 6 }}>
-                    店頭代理購入レシート（Cloudflare KV 保存）
-                  </div>
-                  <img
-                    src={inspectOrder.receipt_image_url}
-                    alt="レシート"
-                    className="receipt-preview-img"
-                  />
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div className="field">
-                  <label className="field-label">ステータス強制変更</label>
-                  <select
-                    className="select"
-                    value={overrideStatus}
-                    onChange={(e) => setOverrideStatus(e.target.value as OrderStatus)}
-                  >
-                    {[
-                      'placed',
-                      'preparing',
-                      'ready_for_pickup',
-                      'driver_heading_to_store',
-                      'proxy_ordering',
-                      'proxy_waiting',
-                      'delivering',
-                      'delivered',
-                      'cancelled',
-                    ].map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field">
-                  <label className="field-label">手動ドライバー割当</label>
-                  <select
-                    className="select"
-                    value={overrideDriverId}
-                    onChange={(e) => setOverrideDriverId(e.target.value)}
-                  >
-                    <option value="">（未割当）</option>
-                    {drivers.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}（{d.proxy_card_enabled ? '代理OK' : '通常'}）
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="btn btn-outline" onClick={() => setInspectOrder(null)}>
-                閉じる
-              </button>
-              <button type="button" className="btn btn-dark" onClick={() => void handleAdminOrderUpdate()}>
-                変更を適用する
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdminInspectModal
+          order={inspectOrder}
+          drivers={drivers}
+          overrideStatus={overrideStatus}
+          overrideDriverId={overrideDriverId}
+          onChangeStatus={setOverrideStatus}
+          onChangeDriver={setOverrideDriverId}
+          onClose={() => setInspectOrder(null)}
+          onSave={() => void handleAdminOrderUpdate()}
+        />
       )}
     </div>
   );

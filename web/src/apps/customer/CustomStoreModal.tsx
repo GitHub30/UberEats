@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, Trash2, Store, Sparkles } from 'lucide-react';
 import { api, formatYen } from '../../api/client';
+import { useModalA11y } from '../../hooks/useModalA11y';
 import type { Order, PlatformSettings } from '../../types';
 
 interface CustomStoreModalProps {
@@ -18,6 +19,7 @@ export function CustomStoreModal({
   onClose,
   onCreated,
 }: CustomStoreModalProps) {
+  const dialogRef = useModalA11y(onClose);
   const [storeName, setStoreName] = useState('');
   const [storeAddress, setStoreAddress] = useState('');
   const [storeArea, setStoreArea] = useState('渋谷');
@@ -87,11 +89,19 @@ export function CustomStoreModal({
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="custom-store-modal-title"
+      >
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Store size={20} color="#c85a17" />
-            <h2>掲載されていないお店を持ち帰り代理注文</h2>
+            <Store size={20} color="#b34d0e" aria-hidden="true" />
+            <h2 id="custom-store-modal-title">掲載されていないお店を持ち帰り代理注文</h2>
           </div>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="閉じる">
             <X size={18} />

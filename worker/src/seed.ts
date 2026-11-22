@@ -625,7 +625,7 @@ export async function seedDatabase(db: D1Database): Promise<void> {
   const now = new Date().toISOString();
   const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
 
-  await db.batch([
+  const statements: D1PreparedStatement[] = [
     db.prepare('DELETE FROM order_messages'),
     db.prepare('DELETE FROM order_events'),
     db.prepare('DELETE FROM orders'),
@@ -633,85 +633,60 @@ export async function seedDatabase(db: D1Database): Promise<void> {
     db.prepare('DELETE FROM drivers'),
     db.prepare('DELETE FROM stores'),
     db.prepare('DELETE FROM platform_settings'),
-  ]);
-
-  await db
-    .prepare(
-      `INSERT INTO platform_settings
-       (id, base_delivery_fee, proxy_order_fee, service_fee_rate, merchant_commission_rate, driver_base_payout, driver_proxy_bonus, updated_at)
-       VALUES (1, 320, 250, 0.10, 0.25, 380, 240, ?)`
-    )
-    .bind(now)
-    .run();
-
-  const storeStmts = SEED_STORES.map((s) =>
     db
       .prepare(
-        `INSERT INTO stores
-         (id, name, category, description, address, area, phone, lat, lng, image_url, is_partner, is_unlisted_request, is_open, busy_mode, avg_prep_min, rating, review_count, takeout_notes, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, ?, ?)`
+        `INSERT INTO platform_settings
+         (id, base_delivery_fee, proxy_order_fee, service_fee_rate, merchant_commission_rate, driver_base_payout, driver_proxy_bonus, updated_at)
+         VALUES (1, 320, 250, 0.10, 0.25, 380, 240, ?)`
       )
-      .bind(
-        s.id,
-        s.name,
-        s.category,
-        s.description,
-        s.address,
-        s.area,
-        s.phone,
-        s.lat,
-        s.lng,
-        s.image_url,
-        s.is_partner,
-        s.is_open,
-        s.avg_prep_min,
-        s.rating,
-        s.review_count,
-        s.takeout_notes,
-        now
-      )
-  );
-  await db.batch(storeStmts);
+      .bind(now),
+  ];
 
-  const menuStmts = SEED_MENU_ITEMS.map((m) =>
-    db
-      .prepare(
-        `INSERT INTO menu_items
-         (id, store_id, name, description, price, category, options_json, is_available, is_popular, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
-      )
-      .bind(m.id, m.store_id, m.name, m.description, m.price, m.category, m.options_json, m.is_popular, m.sort_order)
-  );
-  await db.batch(menuStmts);
+  for (const s of SEED_STORES) {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO stores
+           (id, name, category, description, address, area, phone, lat, lng, image_url, is_partner, is_unlisted_request, is_open, busy_mode, avg_prep_min, rating, review_count, takeout_notes, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          s.id, s.name, s.category, s.description, s.address, s.area, s.phone,
+          s.lat, s.lng, s.image_url, s.is_partner, s.is_open, s.avg_prep_min,
+          s.rating, s.review_count, s.takeout_notes, now
+        )
+    );
+  }
 
-  const driverStmts = SEED_DRIVERS.map((d) =>
-    db
-      .prepare(
-        `INSERT INTO drivers
-         (id, name, phone, vehicle_type, is_online, proxy_card_enabled, is_approved, current_lat, current_lng, rating, completed_deliveries, total_earnings, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .bind(
-        d.id,
-        d.name,
-        d.phone,
-        d.vehicle_type,
-        d.is_online,
-        d.proxy_card_enabled,
-        d.is_approved,
-        d.current_lat,
-        d.current_lng,
-        d.rating,
-        d.completed_deliveries,
-        d.total_earnings,
-        now
-      )
-  );
-  await db.batch(driverStmts);
+  for (const m of SEED_MENU_ITEMS) {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO menu_items
+           (id, store_id, name, description, price, category, options_json, is_available, is_popular, sort_order)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`
+        )
+        .bind(m.id, m.store_id, m.name, m.description, m.price, m.category, m.options_json, m.is_popular, m.sort_order)
+    );
+  }
 
-  // Sample realistic orders so all 4 apps immediately show live scenarios!
+  for (const d of SEED_DRIVERS) {
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO drivers
+           (id, name, phone, vehicle_type, is_online, proxy_card_enabled, is_approved, current_lat, current_lng, rating, completed_deliveries, total_earnings, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          d.id, d.name, d.phone, d.vehicle_type, d.is_online, d.proxy_card_enabled,
+          d.is_approved, d.current_lat, d.current_lng, d.rating,
+          d.completed_deliveries, d.total_earnings, now
+        )
+    );
+  }
+
   const sampleOrders = [
-    // 1. Live Partner order waiting for Merchant acceptance in THE WAGYU CRAFT
     {
       id: 'ORD-1001',
       order_code: 'W84K',
@@ -751,7 +726,6 @@ export async function seedDatabase(db: D1Database): Promise<void> {
       created_at: minsAgo(4),
       updated_at: minsAgo(4),
     },
-    // 2. Live Non-Partner Proxy Takeout order waiting for a Driver to claim & go buy takeout!
     {
       id: 'ORD-1002',
       order_code: 'P39M',
@@ -791,7 +765,6 @@ export async function seedDatabase(db: D1Database): Promise<void> {
       created_at: minsAgo(6),
       updated_at: minsAgo(6),
     },
-    // 3. In-progress Non-Partner Proxy Takeout order currently being ordered at store by Sato
     {
       id: 'ORD-1003',
       order_code: 'R71T',
@@ -831,7 +804,6 @@ export async function seedDatabase(db: D1Database): Promise<void> {
       created_at: minsAgo(15),
       updated_at: minsAgo(3),
     },
-    // 4. Completed Partner order (for analytics & history)
     {
       id: 'ORD-1000',
       order_code: 'S12B',
@@ -874,38 +846,38 @@ export async function seedDatabase(db: D1Database): Promise<void> {
   ];
 
   for (const o of sampleOrders) {
-    await db
-      .prepare(
-        `INSERT INTO orders (
-          id, order_code, order_type, status, customer_name, customer_phone,
-          delivery_address, delivery_note, delivery_lat, delivery_lng,
-          store_id, store_name, store_address, store_lat, store_lng, store_is_partner, takeout_notes,
-          driver_id, driver_name, items_json,
-          estimated_subtotal, actual_subtotal, price_diff,
-          delivery_fee, service_fee, proxy_fee, tip_amount, total_amount, driver_payout,
-          payment_method, substitution_policy, max_budget_overage, estimated_prep_min,
-          customer_rating_store, customer_rating_driver, customer_review_comment,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'credit_card', ?, ?, ?, ?, ?, ?, ?, ?)`
-      )
-      .bind(
-        o.id, o.order_code, o.order_type, o.status, o.customer_name, o.customer_phone,
-        o.delivery_address, o.delivery_note, o.delivery_lat, o.delivery_lng,
-        o.store_id, o.store_name, o.store_address, o.store_lat, o.store_lng, o.store_is_partner, o.takeout_notes,
-        o.driver_id, o.driver_name, o.items_json,
-        o.estimated_subtotal, o.actual_subtotal, o.price_diff,
-        o.delivery_fee, o.service_fee, o.proxy_fee, o.tip_amount, o.total_amount, o.driver_payout,
-        o.substitution_policy, o.max_budget_overage, o.estimated_prep_min,
-        o.id === 'ORD-1000' ? 5 : null,
-        o.id === 'ORD-1000' ? 5 : null,
-        o.id === 'ORD-1000' ? 'ネタが新鮮でとても丁寧な配達でした！' : null,
-        o.created_at, o.updated_at
-      )
-      .run();
+    statements.push(
+      db
+        .prepare(
+          `INSERT INTO orders (
+            id, order_code, order_type, status, customer_name, customer_phone,
+            delivery_address, delivery_note, delivery_lat, delivery_lng,
+            store_id, store_name, store_address, store_lat, store_lng, store_is_partner, takeout_notes,
+            driver_id, driver_name, items_json,
+            estimated_subtotal, actual_subtotal, price_diff,
+            delivery_fee, service_fee, proxy_fee, tip_amount, total_amount, driver_payout,
+            payment_method, substitution_policy, max_budget_overage, estimated_prep_min,
+            customer_rating_store, customer_rating_driver, customer_review_comment,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'credit_card', ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          o.id, o.order_code, o.order_type, o.status, o.customer_name, o.customer_phone,
+          o.delivery_address, o.delivery_note, o.delivery_lat, o.delivery_lng,
+          o.store_id, o.store_name, o.store_address, o.store_lat, o.store_lng, o.store_is_partner, o.takeout_notes,
+          o.driver_id, o.driver_name, o.items_json,
+          o.estimated_subtotal, o.actual_subtotal, o.price_diff,
+          o.delivery_fee, o.service_fee, o.proxy_fee, o.tip_amount, o.total_amount, o.driver_payout,
+          o.substitution_policy, o.max_budget_overage, o.estimated_prep_min,
+          o.id === 'ORD-1000' ? 5 : null,
+          o.id === 'ORD-1000' ? 5 : null,
+          o.id === 'ORD-1000' ? 'ネタが新鮮でとても丁寧な配達でした！' : null,
+          o.created_at, o.updated_at
+        )
+    );
   }
 
-  // Events & sample chat message
-  await db.batch([
+  statements.push(
     db.prepare(`INSERT INTO order_events (order_id, actor_role, actor_name, event_type, message, created_at) VALUES (?, 'customer', '高橋 悠斗', 'placed', '提携店舗へ注文が送信されました（店舗の承認待ち）', ?)`).bind('ORD-1001', minsAgo(4)),
     db.prepare(`INSERT INTO order_events (order_id, actor_role, actor_name, event_type, message, created_at) VALUES (?, 'customer', '中村 さくら', 'placed', '非提携店舗の店頭代理注文リクエストが作成されました（対応ドライバー検索中）', ?)`).bind('ORD-1002', minsAgo(6)),
     db.prepare(`INSERT INTO order_events (order_id, actor_role, actor_name, event_type, message, created_at) VALUES (?, 'customer', '伊藤 翔太', 'placed', '非提携店舗の店頭代理注文リクエストが作成されました', ?)`).bind('ORD-1003', minsAgo(15)),
@@ -914,6 +886,8 @@ export async function seedDatabase(db: D1Database): Promise<void> {
     db.prepare(`INSERT INTO order_events (order_id, actor_role, actor_name, event_type, message, created_at) VALUES (?, 'customer', '渡辺 陽菜', 'placed', '注文が送信されました', ?)`).bind('ORD-1000', minsAgo(55)),
     db.prepare(`INSERT INTO order_events (order_id, actor_role, actor_name, event_type, message, created_at) VALUES (?, 'driver', '田中 健太', 'delivered', '配達が完了しました', ?)`).bind('ORD-1000', minsAgo(22)),
     db.prepare(`INSERT INTO order_messages (order_id, sender_role, sender_name, body, created_at) VALUES ('ORD-1003', 'driver', '佐藤 美咲', 'キッチン三ツ星に到着しました！ただいま店頭カウンターでオムライス＆ハンバーグプレートとポタージュの持ち帰り注文を行います。', ?)`).bind(minsAgo(3)),
-    db.prepare(`INSERT INTO order_messages (order_id, sender_role, sender_name, body, created_at) VALUES ('ORD-1003', 'customer', '伊藤 翔太', 'ありがとうございます！お手数おかけしますがよろしくお願いします。', ?)`).bind(minsAgo(2)),
-  ]);
+    db.prepare(`INSERT INTO order_messages (order_id, sender_role, sender_name, body, created_at) VALUES ('ORD-1003', 'customer', '伊藤 翔太', 'ありがとうございます！お手数おかけしますがよろしくお願いします。', ?)`).bind(minsAgo(2))
+  );
+
+  await db.batch(statements);
 }

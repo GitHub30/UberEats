@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Plus, Minus, Trash2, ShoppingBag, Receipt } from 'lucide-react';
 import { api, formatYen } from '../../api/client';
 import { OrderTypeBadge } from '../../components/StatusBadge';
+import { useModalA11y } from '../../hooks/useModalA11y';
 import type { CartItem, Order, PlatformSettings, Store } from '../../types';
 
 interface CartDrawerProps {
@@ -31,6 +32,7 @@ export function CartDrawer({
   onClose,
   onOrderPlaced,
 }: CartDrawerProps) {
+  const drawerRef = useModalA11y(onClose);
   const [deliveryNote, setDeliveryNote] = useState('玄関ドア前に置き配希望');
   const [tipAmount, setTipAmount] = useState(100);
   const [substitutionPolicy, setSubstitutionPolicy] = useState<'contact' | 'similar' | 'cancel_item'>('contact');
@@ -78,11 +80,19 @@ export function CartDrawer({
 
   return (
     <div className="drawer-overlay" onClick={onClose}>
-      <aside className="drawer" onClick={(e) => e.stopPropagation()} aria-label="カート">
+      <div
+        ref={drawerRef}
+        tabIndex={-1}
+        className="drawer"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cart-drawer-title"
+      >
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ShoppingBag size={19} />
-            <h2>注文カート</h2>
+            <ShoppingBag size={19} aria-hidden="true" />
+            <h2 id="cart-drawer-title">注文カート</h2>
           </div>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="閉じる">
             <X size={18} />
@@ -270,7 +280,7 @@ export function CartDrawer({
             </div>
           </form>
         )}
-      </aside>
+      </div>
     </div>
   );
 }

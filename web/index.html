@@ -2,18 +2,33 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MachiEats — 街のすべてのお店から届くフードデリバリー</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>MachiEats | 提携店も非提携も届くデリバリーPWA</title>
     <meta
       name="description"
-      content="提携レストランはもちろん、デリバリー非提携の街の名店もドライバーが店頭で持ち帰り注文してお届け。エンドユーザー・ドライバー・店舗・管理画面の4つのアプリをCloudflare D1でリアルタイム連携。"
+      content="公式提携店と非提携店の店頭持ち帰り代理注文に対応するフードデリバリーPWA。注文・ドライバー・店舗受注・管理画面の4アプリをCloudflare D1/KVで連携。"
     />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="theme-color" content="#141413" />
+    <meta name="application-name" content="MachiEats" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MachiEats" />
+
+    <link rel="manifest" href="/UberEats/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/UberEats/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/UberEats/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/UberEats/icons/apple-touch-icon.png" />
+
+    <link rel="preconnect" href="https://ubereats-api.6u.workers.dev" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap"
       rel="stylesheet"
     />
+    <!-- ROUTE_META_PLACEHOLDER -->
   </head>
   <body>
     <div id="root"></div>
