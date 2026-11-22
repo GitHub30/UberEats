@@ -1,0 +1,13 @@
+name = "ubereats-api"
+main = "src/index.ts"
+compatibility_date = "2025-02-14"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ubereats-db"
+database_id = "b0f06e37-2d81-4123-b52f-b3671c61193f"
+
+[[kv_namespaces]]
+binding = "MEDIA_KV"
+id = "b19697288996452984cd566570d4d6cf"

@@ -1,0 +1,143 @@
+:root {
+  /* Editorial Light Surface Tokens (Customer & Admin) */
+  --bg-canvas: #faf9f6;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f3f1eb;
+  --bg-muted: #eae6dc;
+
+  /* Ink Hierarchy */
+  --ink-primary: #141413;
+  --ink-secondary: #4e4d49;
+  --ink-muted: #78756e;
+  --ink-inverse: #ffffff;
+
+  /* Semantic Culinary Accents */
+  --brand-green: #068449;
+  --brand-green-hover: #056b3b;
+  --brand-green-soft: #e7f6ee;
+  --brand-green-border: #b7e4cc;
+
+  /* Non-Partner Proxy Takeout Accent (Warm Terracotta) */
+  --proxy-amber: #c85a17;
+  --proxy-amber-hover: #a94910;
+  --proxy-amber-soft: #fef3eb;
+  --proxy-amber-border: #f7cfa9;
+
+  /* Status Colors */
+  --status-info: #1d63b8;
+  --status-info-soft: #ebf3fc;
+  --status-warn: #b45309;
+  --status-warn-soft: #fef6e4;
+  --status-danger: #c42b2b;
+  --status-danger-soft: #fdecec;
+
+  /* Driver Outdoor Dark Palette */
+  --drv-bg: #111417;
+  --drv-surface: #1b2026;
+  --drv-elevated: #232a32;
+  --drv-border: rgba(255, 255, 255, 0.1);
+  --drv-ink: #f4f6f8;
+  --drv-muted: #9aa4b2;
+  --drv-emerald: #10b981;
+  --drv-amber: #f59e0b;
+
+  /* Merchant Kitchen POS Palette */
+  --pos-bg: #f1f3f5;
+  --pos-surface: #ffffff;
+  --pos-border: #dde2e8;
+
+  /* Borders & Elevation */
+  --border-subtle: rgba(20, 20, 19, 0.08);
+  --border-strong: rgba(20, 20, 19, 0.16);
+  --shadow-xs: 0 1px 2px rgba(20, 20, 19, 0.05);
+  --shadow-sm: 0 2px 8px rgba(20, 20, 19, 0.06), 0 1px 2px rgba(20, 20, 19, 0.04);
+  --shadow-md: 0 10px 28px rgba(20, 20, 19, 0.08), 0 2px 6px rgba(20, 20, 19, 0.04);
+  --shadow-lg: 0 22px 48px rgba(20, 20, 19, 0.14), 0 4px 12px rgba(20, 20, 19, 0.06);
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 9999px;
+
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+  --transition-fast: 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --transition-med: 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  background: var(--bg-canvas);
+  color: var(--ink-primary);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-fade {
+  animation: fadeIn var(--transition-med) both;
+}
