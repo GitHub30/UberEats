@@ -1,4 +1,4 @@
--- MachiEats (UberEats-style Food Delivery with Non-Partner Proxy Takeout)
+-- MachiEats (UberEats-style Food Delivery with Non-Partner Proxy Takeout & Multi-Payment Support)
 -- Cloudflare D1 Schema
 
 DROP TABLE IF EXISTS order_messages;
@@ -101,10 +101,16 @@ CREATE TABLE orders (
   service_fee INTEGER NOT NULL DEFAULT 0,
   proxy_fee INTEGER NOT NULL DEFAULT 0,
   tip_amount INTEGER NOT NULL DEFAULT 0,
+  discount_amount INTEGER NOT NULL DEFAULT 0,
+  voucher_code TEXT NOT NULL DEFAULT '',
   total_amount INTEGER NOT NULL DEFAULT 0,
   driver_payout INTEGER NOT NULL DEFAULT 380,
-  payment_method TEXT NOT NULL DEFAULT 'credit_card',
-  substitution_policy TEXT NOT NULL DEFAULT 'contact', -- 'contact' | 'similar' | 'cancel_item'
+  payment_method TEXT NOT NULL DEFAULT 'credit_card', -- credit_card | cash | paypay | suica | apple_pay | rakuten_pay | d_barai
+  payment_label TEXT NOT NULL DEFAULT 'Visa •••• 4919',
+  payment_status TEXT NOT NULL DEFAULT 'paid',        -- paid | cash_on_delivery | cash_collected | refunded
+  billing_profile TEXT NOT NULL DEFAULT 'personal',   -- personal | business
+  driver_store_payment_method TEXT NOT NULL DEFAULT 'proxy_card',
+  substitution_policy TEXT NOT NULL DEFAULT 'contact',
   max_budget_overage INTEGER NOT NULL DEFAULT 300,
   receipt_image_url TEXT,
   receipt_note TEXT,

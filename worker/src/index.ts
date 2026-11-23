@@ -30,8 +30,63 @@ const VALID_SUBSTITUTION_POLICIES = new Set(['contact', 'similar', 'cancel_item'
 const VALID_VEHICLES = new Set(['bicycle', 'ebike', 'scooter', 'car']);
 const VALID_ACTOR_ROLES = new Set(['customer', 'driver', 'merchant', 'admin']);
 const VALID_MEDIA_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const VALID_PAYMENT_METHODS: Record<string, string> = {
+  credit_card: 'クレジットカード',
+  cash: '現金（配達時払い）',
+  paypay: 'PayPay',
+  suica: 'モバイルSuica / 交通系IC',
+  apple_pay: 'Apple Pay / タッチ決済',
+  rakuten_pay: '楽天ペイ',
+  d_barai: 'd払い',
+};
+const VALID_BILLING_PROFILES = new Set(['personal', 'business']);
+const VALID_DRIVER_STORE_PAYMENTS = new Set(['proxy_card', 'cash', 'paypay', 'suica']);
 const SAFE_STORE_IMAGE_RE = /^images\/[a-z0-9_-]+\.webp$/i;
 const SAFE_MEDIA_ID_RE = /^[a-zA-Z0-9_-]{6,48}$/;
+
+function resolvePaymentMeta(body: Record<string, unknown>) {
+  const rawMethod = typeof body.payment_method === 'string' ? body.payment_method.trim().toLowerCase() : 'credit_card';
+  const method = rawMethod in VALID_PAYMENT_METHODS ? rawMethod : 'credit_card';
+  const rawLabel = typeof body.payment_label === 'string' ? body.payment_label.trim().slice(0, 60) : '';
+  const label = rawLabel || VALID_PAYMENT_METHODS[method];
+  const status = method === 'cash' ? 'cash_on_delivery' : 'paid';
+  const billingProfile = VALID_BILLING_PROFILES.has(String(body.billing_profile))
+    ? String(body.billing_profile)
+    : 'personal';
+  return { method, label, status, billingProfile };
+}
+
+function computeServerDiscount(
+  voucherCodeRaw: unknown,
+  useWalletCash: boolean,
+  subtotal: number,
+  proxyFee: number,
+  paymentMethod: string
+): { voucherCode: string; discountAmount: number } {
+  const code = typeof voucherCodeRaw === 'string' ? voucherCodeRaw.trim().toUpperCase().slice(0, 24) : '';
+  let discount = 0;
+  let appliedCode = '';
+  if (code === 'WELCOME500' && subtotal >= 1000) {
+    discount += 500;
+    appliedCode = code;
+  } else if (code === 'PROXY250' && proxyFee > 0) {
+    discount += proxyFee;
+    appliedCode = code;
+  } else if (code === 'PAYPAY100' && paymentMethod === 'paypay') {
+    discount += 100;
+    appliedCode = code;
+  } else if (code === 'SUICA100' && paymentMethod === 'suica') {
+    discount += 100;
+    appliedCode = code;
+  }
+  if (useWalletCash) {
+    discount += 500;
+  }
+  return {
+    voucherCode: appliedCode,
+    discountAmount: Math.min(discount, subtotal + proxyFee),
+  };
+}
 
 const SECURITY_HEADERS: Record<string, string> = {
   'X-Content-Type-Options': 'nosniff',
@@ -995,7 +1050,18 @@ export default {
         const serviceFee = Math.round(estimatedSubtotal * settings.service_fee_rate);
         const proxyFee = isPartner ? 0 : settings.proxy_order_fee;
         const tipAmount = clampInt(body.tip_amount, 0, 50000, 0);
-        const totalAmount = estimatedSubtotal + deliveryFee + serviceFee + proxyFee + tipAmount;
+        const payment = resolvePaymentMeta(body);
+        const { voucherCode, discountAmount } = computeServerDiscount(
+          body.voucher_code,
+          Boolean(body.use_wallet_cash),
+          estimatedSubtotal,
+          proxyFee,
+          payment.method
+        );
+        const totalAmount = Math.max(
+          0,
+          estimatedSubtotal + deliveryFee + serviceFee + proxyFee + tipAmount - discountAmount
+        );
         const driverPayout =
           settings.driver_base_payout + (isPartner ? 0 : settings.driver_proxy_bonus) + tipAmount;
 
@@ -1016,10 +1082,11 @@ export default {
             customer_name, customer_phone, delivery_address, delivery_note, delivery_lat, delivery_lng,
             store_id, store_name, store_address, store_lat, store_lng, store_is_partner, takeout_notes,
             items_json, estimated_subtotal, actual_subtotal, price_diff,
-            delivery_fee, service_fee, proxy_fee, tip_amount, total_amount, driver_payout,
-            payment_method, substitution_policy, max_budget_overage, estimated_prep_min,
+            delivery_fee, service_fee, proxy_fee, tip_amount, discount_amount, voucher_code, total_amount, driver_payout,
+            payment_method, payment_label, payment_status, billing_profile, driver_store_payment_method,
+            substitution_policy, max_budget_overage, estimated_prep_min,
             created_at, updated_at
-          ) VALUES (?, ?, ?, 'placed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          ) VALUES (?, ?, ?, 'placed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'proxy_card', ?, ?, ?, ?, ?)`
         )
           .bind(
             orderId,
@@ -1045,9 +1112,14 @@ export default {
             serviceFee,
             proxyFee,
             tipAmount,
+            discountAmount,
+            voucherCode,
             totalAmount,
             driverPayout,
-            clampStr(body.payment_method, 30, 'credit_card'),
+            payment.method,
+            payment.label,
+            payment.status,
+            payment.billingProfile,
             subPolicy,
             isPartner ? 0 : clampInt(body.max_budget_overage, 0, 10000, 300),
             isPartner ? null : Number(store.avg_prep_min || 20),
@@ -1063,8 +1135,8 @@ export default {
           customerName,
           'placed',
           isPartner
-            ? '提携店舗へ注文が送信されました（店舗の受注確認待ち）'
-            : '非提携店舗の持ち帰り代理注文をリクエストしました（対応ドライバー検索中）'
+            ? `提携店舗へ注文が送信されました（${payment.label} / 店舗承認待ち）`
+            : `非提携店舗の持ち帰り代理注文をリクエストしました（${payment.label} / 対応ドライバー検索中）`
         );
 
         const created = await env.DB.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first();
@@ -1112,7 +1184,18 @@ export default {
         const serviceFee = Math.round(estimatedSubtotal * settings.service_fee_rate);
         const proxyFee = settings.proxy_order_fee;
         const tipAmount = clampInt(body.tip_amount, 0, 50000, 0);
-        const totalAmount = estimatedSubtotal + deliveryFee + serviceFee + proxyFee + tipAmount;
+        const payment = resolvePaymentMeta(body);
+        const { voucherCode, discountAmount } = computeServerDiscount(
+          body.voucher_code,
+          Boolean(body.use_wallet_cash),
+          estimatedSubtotal,
+          proxyFee,
+          payment.method
+        );
+        const totalAmount = Math.max(
+          0,
+          estimatedSubtotal + deliveryFee + serviceFee + proxyFee + tipAmount - discountAmount
+        );
         const driverPayout = settings.driver_base_payout + settings.driver_proxy_bonus + tipAmount;
 
         const orderId = makeOrderId();
@@ -1146,10 +1229,11 @@ export default {
               customer_name, customer_phone, delivery_address, delivery_note, delivery_lat, delivery_lng,
               store_id, store_name, store_address, store_lat, store_lng, store_is_partner, takeout_notes,
               items_json, estimated_subtotal, actual_subtotal, price_diff,
-              delivery_fee, service_fee, proxy_fee, tip_amount, total_amount, driver_payout,
-              payment_method, substitution_policy, max_budget_overage, estimated_prep_min,
+              delivery_fee, service_fee, proxy_fee, tip_amount, discount_amount, voucher_code, total_amount, driver_payout,
+              payment_method, payment_label, payment_status, billing_profile, driver_store_payment_method,
+              substitution_policy, max_budget_overage, estimated_prep_min,
               created_at, updated_at
-            ) VALUES (?, ?, 'proxy_takeout', 'placed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, 0, ?, ?, ?, ?, ?, ?, 'credit_card', ?, ?, 25, ?, ?)`
+            ) VALUES (?, ?, 'proxy_takeout', 'placed', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'proxy_card', ?, ?, 25, ?, ?)`
           ).bind(
             orderId,
             orderCode,
@@ -1171,8 +1255,14 @@ export default {
             serviceFee,
             proxyFee,
             tipAmount,
+            discountAmount,
+            voucherCode,
             totalAmount,
             driverPayout,
+            payment.method,
+            payment.label,
+            payment.status,
+            payment.billingProfile,
             subPolicy,
             clampInt(body.max_budget_overage, 0, 10000, 500),
             now,
@@ -1181,7 +1271,7 @@ export default {
           env.DB.prepare(
             `INSERT INTO order_events (order_id, actor_role, actor_name, event_type, message, created_at)
              VALUES (?, 'customer', ?, 'placed', ?, ?)`
-          ).bind(orderId, customerName, `未掲載店舗「${storeName}」の持ち帰り代理注文リクエストを作成しました`, now),
+          ).bind(orderId, customerName, `未掲載店舗「${storeName}」の持ち帰り代理注文リクエストを作成しました（${payment.label}）`, now),
         ]);
 
         const created = await env.DB.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first();
@@ -1433,12 +1523,18 @@ export default {
 
           const settings = await getSettings(env.DB);
           const serviceFee = Math.round(actualSubtotal * settings.service_fee_rate);
-          const totalAmount =
+          const totalAmount = Math.max(
+            0,
             actualSubtotal +
-            Number(order.delivery_fee || 0) +
-            serviceFee +
-            Number(order.proxy_fee || 0) +
-            Number(order.tip_amount || 0);
+              Number(order.delivery_fee || 0) +
+              serviceFee +
+              Number(order.proxy_fee || 0) +
+              Number(order.tip_amount || 0) -
+              Number(order.discount_amount || 0)
+          );
+          const driverStorePay = VALID_DRIVER_STORE_PAYMENTS.has(String(body.driver_store_payment_method))
+            ? String(body.driver_store_payment_method)
+            : 'proxy_card';
 
           const res = await env.DB.prepare(
             `UPDATE orders SET
@@ -1447,6 +1543,7 @@ export default {
               price_diff = ?,
               service_fee = ?,
               total_amount = ?,
+              driver_store_payment_method = ?,
               receipt_image_url = COALESCE(?, receipt_image_url),
               receipt_note = COALESCE(?, receipt_note),
               updated_at = ?
@@ -1457,6 +1554,7 @@ export default {
               priceDiff,
               serviceFee,
               totalAmount,
+              driverStorePay,
               safeReceiptUrl,
               clampStr(body.receipt_note, 200) || null,
               now,
@@ -1526,7 +1624,7 @@ export default {
           return resp.json({ order: formatOrder(updated as Record<string, unknown>) });
         }
 
-        // Driver Deliver -> Delivered (Atomic CAS prevents double payout!)
+        // Driver Deliver -> Delivered (Atomic CAS prevents double payout + records cash collection!)
         if (action === 'driver-deliver' && method === 'POST') {
           const body = await parseJsonObject(request, true);
           const reqDriverId = clampStr(body.driver_id, 80);
@@ -1534,17 +1632,23 @@ export default {
             return resp.error('担当ドライバーのみ配達完了できます', 403);
           }
           const safeDropoff = validateSafeMediaUrl(body.dropoff_image_url, url.origin);
+          const nextPaymentStatus = order.payment_method === 'cash' ? 'cash_collected' : String(order.payment_status || 'paid');
 
           const res = await env.DB.prepare(
-            `UPDATE orders SET status = 'delivered', dropoff_image_url = COALESCE(?, dropoff_image_url), updated_at = ?
+            `UPDATE orders SET status = 'delivered', payment_status = ?, dropoff_image_url = COALESCE(?, dropoff_image_url), updated_at = ?
              WHERE id = ? AND status = 'delivering' AND driver_id IS NOT NULL`
           )
-            .bind(safeDropoff, now, orderId)
+            .bind(nextPaymentStatus, safeDropoff, now, orderId)
             .run();
 
           if ((res.meta?.changes ?? 0) !== 1) {
             return resp.error('配達中の注文のみ完了できます（二重完了は防止されます）', 409);
           }
+
+          const deliveredMsg =
+            order.payment_method === 'cash'
+              ? `お届け先へ配達が完了し、現金 ¥${Number(order.total_amount || 0).toLocaleString()} を受領しました。ご利用ありがとうございました！`
+              : 'お届け先へ配達が完了しました。ご利用ありがとうございました！';
 
           await env.DB.batch([
             env.DB.prepare(
@@ -1557,8 +1661,8 @@ export default {
             ).bind(Number(order.driver_payout || 0), order.delivery_lat, order.delivery_lng, order.driver_id),
             env.DB.prepare(
               `INSERT INTO order_events (order_id, actor_role, actor_name, event_type, message, created_at)
-               VALUES (?, 'driver', ?, 'delivered', 'お届け先へ配達が完了しました。ご利用ありがとうございました！', ?)`
-            ).bind(orderId, String(order.driver_name || 'ドライバー'), now),
+               VALUES (?, 'driver', ?, 'delivered', ?, ?)`
+            ).bind(orderId, String(order.driver_name || 'ドライバー'), deliveredMsg, now),
           ]);
 
           const updated = await env.DB.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first();
@@ -1688,7 +1792,7 @@ export default {
       // ================================================================
       if (path === '/api/admin/analytics' && method === 'GET') {
         const settings = await getSettings(env.DB);
-        const [orderAgg, storeAgg, driverAgg, statusRes, recentEventsRes] = await Promise.all([
+        const [orderAgg, storeAgg, driverAgg, statusRes, paymentRes, recentEventsRes] = await Promise.all([
           env.DB.prepare(
             `SELECT
               COUNT(*) as total_orders,
@@ -1721,6 +1825,10 @@ export default {
              FROM drivers`
           ).first<Record<string, number>>(),
           env.DB.prepare('SELECT status, COUNT(*) as c FROM orders GROUP BY status').all<{ status: string; c: number }>(),
+          env.DB.prepare(
+            `SELECT payment_method, COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total_amount
+             FROM orders WHERE status != 'cancelled' GROUP BY payment_method ORDER BY count DESC`
+          ).all<{ payment_method: string; count: number; total_amount: number }>(),
           env.DB.prepare(
             `SELECT e.*, o.store_name, o.order_type
              FROM order_events e
@@ -1764,6 +1872,7 @@ export default {
             proxy_capable_drivers: Number(driverAgg?.proxy_capable_drivers || 0),
           },
           status_counts: statusCounts,
+          payment_breakdown: paymentRes.results || [],
           recent_events: recentEventsRes.results || [],
         });
       }

@@ -1,121 +1,6 @@
 /* =========================================================
-   App Switcher Top Bar (Navigation Across the 4 Apps)
+   Sync & Shared Primitives
    ========================================================= */
-.switcher-bar {
-  position: sticky;
-  top: 0;
-  z-index: 90;
-  padding-top: env(safe-area-inset-top, 0px);
-  background: #141413;
-  color: #f5f4f0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.switcher-inner {
-  max-width: 1360px;
-  margin: 0 auto;
-  padding: 8px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.switcher-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: none;
-  border: none;
-  color: inherit;
-  padding: 2px 0;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-size: 16px;
-}
-
-.switcher-brand-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--brand-green);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 14px;
-}
-
-.switcher-brand-sub {
-  font-size: 11px;
-  font-weight: 600;
-  color: #a3a19b;
-  letter-spacing: 0.02em;
-}
-
-.switcher-tabs {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-  max-width: 100%;
-  scrollbar-width: none;
-}
-
-.switcher-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.switcher-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 13px;
-  border-radius: var(--radius-pill);
-  border: 1px solid transparent;
-  background: rgba(255, 255, 255, 0.06);
-  color: #d6d4ce;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
-}
-
-.switcher-tab:hover {
-  background: rgba(255, 255, 255, 0.13);
-  color: #ffffff;
-}
-
-.switcher-tab.active {
-  background: #ffffff;
-  color: #141413;
-}
-
-.switcher-tab.active.tab-driver {
-  background: var(--drv-emerald);
-  color: #062116;
-}
-
-.switcher-tab.active.tab-merchant {
-  background: #f59e0b;
-  color: #1f1302;
-}
-
-.switcher-tab.active.tab-admin {
-  background: #e8e6e0;
-  color: #141413;
-}
-
-.switcher-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  color: #a8a69f;
-}
-
 .sync-indicator {
   display: inline-flex;
   align-items: center;
@@ -886,9 +771,6 @@
   .portal-stores-strip {
     grid-template-columns: 1fr;
   }
-  .switcher-meta-secondary {
-    display: none !important;
-  }
 }
 
 /* =========================================================
@@ -1005,4 +887,301 @@
 .site-footer-links a:hover {
   color: var(--brand-green);
   text-decoration: underline;
+}
+
+/* =========================================================
+   Payment Brand Logos & Wallet UI (Cash, Card, PayPay, Suica)
+   ========================================================= */
+.pm-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 24px;
+  padding: 0 5px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.pm-logo-visa {
+  background: #1a41c2;
+  color: #ffffff;
+}
+
+.pm-logo-mc {
+  background: #eb001b;
+  color: #ffffff;
+}
+
+.pm-logo-jcb {
+  background: #0e4c96;
+  color: #ffffff;
+}
+
+.pm-logo-cash {
+  background: #5ca937;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.pm-logo-paypay {
+  background: #ff0033;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.pm-logo-suica {
+  background: #009c46;
+  color: #ffffff;
+}
+
+.pm-logo-apple {
+  background: #141413;
+  color: #ffffff;
+}
+
+.pm-logo-rakuten {
+  background: #bf0000;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.pm-logo-dbarai {
+  background: #cc0033;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.wallet-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 18px 18px 110px;
+}
+
+.wallet-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.wallet-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.wallet-profile-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #f2f2f0;
+  padding: 4px;
+  border-radius: 14px;
+  margin-bottom: 24px;
+}
+
+.wallet-profile-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border-radius: 11px;
+  border: 2px solid transparent;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink-muted);
+  transition: all var(--transition-fast);
+}
+
+.wallet-profile-btn.active {
+  background: #ffffff;
+  color: var(--ink-primary);
+  border-color: var(--ink-primary);
+}
+
+.wallet-section-h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+.wallet-balance-section {
+  padding-bottom: 22px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.wallet-balance-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.wallet-switch {
+  width: 50px;
+  height: 30px;
+  border-radius: 999px;
+  border: none;
+  background: #d5d4cf;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  transition: background var(--transition-fast);
+}
+
+.wallet-switch.on {
+  background: #141413;
+  justify-content: flex-end;
+}
+
+.wallet-switch-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.wallet-balance-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.wallet-cash-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #141413;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.wallet-list {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+.wallet-method-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 4px;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.wallet-method-row:hover {
+  background: rgba(20, 20, 19, 0.03);
+}
+
+.wallet-method-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.wallet-method-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.wallet-method-promo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--brand-green);
+  margin-top: 2px;
+}
+
+.wallet-method-sub {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-top: 2px;
+}
+
+.wallet-check-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #141413;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wallet-plus-icon {
+  width: 34px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-primary);
+}
+
+.wallet-add-panel {
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+}
+
+.wallet-vouchers-section {
+  margin-top: 28px;
+}
+
+.wallet-voucher-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wallet-voucher-card {
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.wallet-voucher-card.active {
+  border-color: var(--brand-green);
+  background: var(--brand-green-soft);
+}
+
+.checkout-payment-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
 }

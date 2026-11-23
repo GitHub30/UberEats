@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Store, Sparkles } from 'lucide-react';
+import { X, Plus, Trash2, Store, Sparkles, ChevronRight } from 'lucide-react';
 import { api, formatYen } from '../../api/client';
+import { PaymentLogo, previewDiscount, usePaymentWallet } from '../../components/PaymentBadge';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import type { Order, PlatformSettings } from '../../types';
 
 interface CustomStoreModalProps {
   settings: PlatformSettings;
+  wallet: ReturnType<typeof usePaymentWallet>;
   defaultAddress: string;
   defaultName: string;
+  onOpenWallet: () => void;
   onClose: () => void;
   onCreated: (order: Order) => void;
 }
 
 export function CustomStoreModal({
   settings,
+  wallet,
   defaultAddress,
   defaultName,
+  onOpenWallet,
   onClose,
   onCreated,
 }: CustomStoreModalProps) {
@@ -39,7 +44,17 @@ export function CustomStoreModal({
 
   const subtotal = items.reduce((s, it) => s + (Number(it.estimated_price) || 0) * (Number(it.quantity) || 1), 0);
   const serviceFee = Math.round(subtotal * settings.service_fee_rate);
-  const total = subtotal + settings.base_delivery_fee + serviceFee + settings.proxy_order_fee + tipAmount;
+  const discount = previewDiscount(
+    wallet.voucherCode,
+    wallet.useWalletCash,
+    subtotal,
+    settings.proxy_order_fee,
+    wallet.selectedMethod.type
+  );
+  const total = Math.max(
+    0,
+    subtotal + settings.base_delivery_fee + serviceFee + settings.proxy_order_fee + tipAmount - discount
+  );
 
   const fillExample = () => {
     setStoreName('精肉店 肉の吉田屋 渋谷百軒店');
@@ -76,6 +91,11 @@ export function CustomStoreModal({
         delivery_note: deliveryNote.trim(),
         items: validItems,
         tip_amount: tipAmount,
+        payment_method: wallet.selectedMethod.type,
+        payment_label: wallet.selectedMethod.label,
+        billing_profile: wallet.billingProfile,
+        voucher_code: wallet.voucherCode,
+        use_wallet_cash: wallet.useWalletCash,
         substitution_policy: substitutionPolicy,
         max_budget_overage: maxOverage,
       });
@@ -114,7 +134,7 @@ export function CustomStoreModal({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                 <strong>街のどんなお店でも、ドライバーが店頭へ行ってテイクアウト購入します。</strong>
                 <button type="button" className="btn btn-outline btn-sm" onClick={fillExample}>
-                  <Sparkles size={13} />
+                  <Sparkles size={13} aria-hidden="true" />
                   サンプル入力（商店街のコロッケ店）
                 </button>
               </div>
@@ -131,8 +151,9 @@ export function CustomStoreModal({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 0.7fr', gap: 12 }}>
               <div className="field">
-                <label className="field-label">お店の名前 *</label>
+                <label htmlFor="custom-store-name" className="field-label">お店の名前 *</label>
                 <input
+                  id="custom-store-name"
                   className="input"
                   required
                   placeholder="例：精肉店 肉の吉田屋、〇〇ベーカリー"
@@ -141,9 +162,9 @@ export function CustomStoreModal({
                 />
               </div>
               <div className="field">
-                <label className="field-label">エリア</label>
-                <select className="select" value={storeArea} onChange={(e) => setStoreArea(e.target.value)}>
-                  {['渋谷', '恵比寿', '中目黒', '代官山', '表参道', '六本木', '新宿', '下北沢'].map((a) => (
+                <label htmlFor="custom-store-area" className="field-label">エリア</label>
+                <select id="custom-store-area" className="select" value={storeArea} onChange={(e) => setStoreArea(e.target.value)}>
+                  {['渋谷', '恵比寿', '中目黒', '代官山', '表参道', '六本木'].map((a) => (
                     <option key={a} value={a}>{a}</option>
                   ))}
                 </select>
@@ -152,8 +173,9 @@ export function CustomStoreModal({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.6fr', gap: 12 }}>
               <div className="field">
-                <label className="field-label">お店の住所・目印 *</label>
+                <label htmlFor="custom-store-addr" className="field-label">お店の住所・目印 *</label>
                 <input
+                  id="custom-store-addr"
                   className="input"
                   required
                   placeholder="例：東京都渋谷区道玄坂2-18-5（商店街入口すぐ）"
@@ -162,8 +184,8 @@ export function CustomStoreModal({
                 />
               </div>
               <div className="field">
-                <label className="field-label">ジャンル</label>
-                <select className="select" value={storeCategory} onChange={(e) => setStoreCategory(e.target.value)}>
+                <label htmlFor="custom-store-cat" className="field-label">ジャンル</label>
+                <select id="custom-store-cat" className="select" value={storeCategory} onChange={(e) => setStoreCategory(e.target.value)}>
                   {['その他', '町中華', 'ラーメン', '洋食', '焼き鳥・弁当', 'カフェ', 'バーガー', '寿司', 'カレー'].map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -172,8 +194,9 @@ export function CustomStoreModal({
             </div>
 
             <div className="field">
-              <label className="field-label">ドライバーへの店頭注文ヒント</label>
+              <label htmlFor="custom-store-notes" className="field-label">ドライバーへの店頭注文ヒント</label>
               <input
+                id="custom-store-notes"
                 className="input"
                 placeholder="例：券売機で購入、右側のテイクアウト窓口から注文、現金のみ等"
                 value={takeoutNotes}
@@ -183,7 +206,7 @@ export function CustomStoreModal({
 
             <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <label className="field-label">持ち帰り希望メニュー *</label>
+                <span className="field-label">持ち帰り希望メニュー *</span>
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
@@ -191,7 +214,7 @@ export function CustomStoreModal({
                     setItems((prev) => [...prev, { name: '', estimated_price: 800, quantity: 1, note: '' }])
                   }
                 >
-                  <Plus size={14} />
+                  <Plus size={14} aria-hidden="true" />
                   商品を追加
                 </button>
               </div>
@@ -208,6 +231,7 @@ export function CustomStoreModal({
                   >
                     <input
                       className="input"
+                      aria-label={`商品名 ${idx + 1}`}
                       placeholder="商品名（例：メンチカツ）"
                       value={it.name}
                       onChange={(e) =>
@@ -216,6 +240,7 @@ export function CustomStoreModal({
                     />
                     <input
                       className="input"
+                      aria-label={`目安金額 ${idx + 1}`}
                       type="number"
                       min={50}
                       step={50}
@@ -229,6 +254,7 @@ export function CustomStoreModal({
                     />
                     <input
                       className="input"
+                      aria-label={`数量 ${idx + 1}`}
                       type="number"
                       min={1}
                       max={20}
@@ -253,10 +279,40 @@ export function CustomStoreModal({
               </div>
             </div>
 
+            {/* Payment Method Picker */}
+            <div className="field">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span className="field-label">お支払い方法</span>
+                <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '2px 6px' }} onClick={onOpenWallet}>
+                  支払い設定 <ChevronRight size={14} aria-hidden="true" />
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} role="radiogroup" aria-label="決済方法選択">
+                {wallet.methods.map((m) => {
+                  const active = wallet.selectedMethod.id === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      className={`option-pill ${active ? 'selected' : ''}`}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px' }}
+                      onClick={() => wallet.selectMethod(m.id)}
+                    >
+                      <PaymentLogo type={m.type} brand={m.brand} />
+                      <span>{m.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="field">
-                <label className="field-label">品切れ時の対応</label>
+                <label htmlFor="custom-sub-policy" className="field-label">品切れ時の対応</label>
                 <select
+                  id="custom-sub-policy"
                   className="select"
                   value={substitutionPolicy}
                   onChange={(e) => setSubstitutionPolicy(e.target.value as 'contact' | 'similar' | 'cancel_item')}
@@ -267,8 +323,8 @@ export function CustomStoreModal({
                 </select>
               </div>
               <div className="field">
-                <label className="field-label">実費差額の自動承認上限</label>
-                <select className="select" value={maxOverage} onChange={(e) => setMaxOverage(Number(e.target.value))}>
+                <label htmlFor="custom-max-overage" className="field-label">実費差額の自動承認上限</label>
+                <select id="custom-max-overage" className="select" value={maxOverage} onChange={(e) => setMaxOverage(Number(e.target.value))}>
                   <option value={300}>+¥300まで自動承認</option>
                   <option value={500}>+¥500まで自動承認</option>
                   <option value={1000}>+¥1,000まで自動承認</option>
@@ -278,23 +334,23 @@ export function CustomStoreModal({
 
             <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr', gap: 12 }}>
               <div className="field">
-                <label className="field-label">お名前</label>
-                <input className="input" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                <label htmlFor="custom-customer-name" className="field-label">お名前</label>
+                <input id="custom-customer-name" className="input" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
               </div>
               <div className="field">
-                <label className="field-label">お届け先住所</label>
-                <input className="input" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
+                <label htmlFor="custom-delivery-addr" className="field-label">お届け先住所</label>
+                <input id="custom-delivery-addr" className="input" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 12 }}>
               <div className="field">
-                <label className="field-label">配達メモ</label>
-                <input className="input" value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} />
+                <label htmlFor="custom-delivery-note" className="field-label">配達メモ</label>
+                <input id="custom-delivery-note" className="input" value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} />
               </div>
               <div className="field">
-                <label className="field-label">ドライバーへのチップ</label>
-                <select className="select" value={tipAmount} onChange={(e) => setTipAmount(Number(e.target.value))}>
+                <label htmlFor="custom-tip" className="field-label">ドライバーへのチップ</label>
+                <select id="custom-tip" className="select" value={tipAmount} onChange={(e) => setTipAmount(Number(e.target.value))}>
                   <option value={0}>¥0</option>
                   <option value={100}>¥100</option>
                   <option value={150}>¥150</option>
@@ -326,8 +382,14 @@ export function CustomStoreModal({
                   <span className="tabular-nums">{formatYen(tipAmount)}</span>
                 </div>
               )}
+              {discount > 0 && (
+                <div className="price-line" style={{ color: 'var(--brand-green)', fontWeight: 700 }}>
+                  <span>割引</span>
+                  <span className="tabular-nums">-{formatYen(discount)}</span>
+                </div>
+              )}
               <div className="price-line total">
-                <span>仮決済合計（レシート実費で精算）</span>
+                <span>合計（{wallet.selectedMethod.label}）</span>
                 <span className="tabular-nums">{formatYen(total)}</span>
               </div>
             </div>
@@ -338,7 +400,7 @@ export function CustomStoreModal({
               キャンセル
             </button>
             <button type="submit" className="btn btn-proxy btn-lg" disabled={submitting}>
-              {submitting ? '送信中...' : `代理注文をリクエスト（目安 ${formatYen(total)}）`}
+              {submitting ? '送信中...' : `${wallet.selectedMethod.label}で代理注文（目安 ${formatYen(total)}）`}
             </button>
           </div>
         </form>

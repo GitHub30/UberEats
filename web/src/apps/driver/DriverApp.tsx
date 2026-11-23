@@ -12,6 +12,8 @@ import {
   AlertTriangle,
   Sparkles,
   PackageCheck,
+  Download,
+  Banknote,
 } from 'lucide-react';
 import {
   api,
@@ -22,11 +24,24 @@ import {
 } from '../../api/client';
 import { DeliveryMap } from '../../components/DeliveryMap';
 import { OrderChat } from '../../components/OrderChat';
+import { PaymentBadge } from '../../components/PaymentBadge';
 import { StatusBadge, substitutionLabel, vehicleLabel } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toast';
-import type { Driver, Order, OrderMessage } from '../../types';
+import type { Driver, DriverStorePaymentMethod, Order, OrderMessage } from '../../types';
 
-export function DriverApp() {
+const STORE_PAY_OPTIONS: Array<{ value: DriverStorePaymentMethod; label: string; receiptLabel: string }> = [
+  { value: 'proxy_card', label: 'MachiEats 代理カード', receiptLabel: 'MachiEats 代理決済カード（済）' },
+  { value: 'cash', label: '現金立替（券売機・現金のみ店）', receiptLabel: '現金立替払い（領収済）' },
+  { value: 'paypay', label: 'PayPay 店頭決済', receiptLabel: 'PayPay 店頭決済（済）' },
+  { value: 'suica', label: 'モバイルSuica / 交通系IC', receiptLabel: 'Suica / 交通系IC 決済（済）' },
+];
+
+export interface DriverAppProps {
+  canInstallPwa?: boolean;
+  onInstallPwa?: () => void;
+}
+
+export function DriverApp({ canInstallPwa = false, onInstallPwa }: DriverAppProps = {}) {
   const { notify } = useToast();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [selectedDriverId, setSelectedDriverId] = useState<string>('drv-tanaka');
@@ -35,10 +50,12 @@ export function DriverApp() {
   const [activeMessages, setActiveMessages] = useState<Record<string, OrderMessage[]>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  // Proxy purchase form state keyed by order id
+  // Proxy purchase & COD cash confirmation state keyed by order id
   const [actualPriceMap, setActualPriceMap] = useState<Record<string, string>>({});
   const [receiptUrlMap, setReceiptUrlMap] = useState<Record<string, string>>({});
   const [receiptNoteMap, setReceiptNoteMap] = useState<Record<string, string>>({});
+  const [storePayMap, setStorePayMap] = useState<Record<string, DriverStorePaymentMethod>>({});
+  const [cashConfirmedMap, setCashConfirmedMap] = useState<Record<string, boolean>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const currentDriver = drivers.find((d) => d.id === selectedDriverId) || drivers[0] || null;
@@ -142,7 +159,9 @@ export function DriverApp() {
     setUploadingId(order.id);
     try {
       const price = Math.max(0, Math.round(Number(actualPriceMap[order.id] ?? order.estimated_subtotal)));
-      const dataUrl = generateReceiptDataUrl(order, price);
+      const storePay = storePayMap[order.id] || 'proxy_card';
+      const opt = STORE_PAY_OPTIONS.find((o) => o.value === storePay) || STORE_PAY_OPTIONS[0];
+      const dataUrl = generateReceiptDataUrl(order, price, opt.receiptLabel);
       const uploaded = await api.uploadMedia(dataUrl);
       setReceiptUrlMap((prev) => ({ ...prev, [order.id]: uploaded.url }));
       notify('テスト用レシート写真を撮影し Cloudflare KV へ保存しました', 'success');
@@ -157,9 +176,11 @@ export function DriverApp() {
     setBusyId(order.id);
     try {
       const price = Math.max(0, Math.round(Number(actualPriceMap[order.id] ?? order.estimated_subtotal)));
+      const storePay = storePayMap[order.id] || 'proxy_card';
+      const opt = STORE_PAY_OPTIONS.find((o) => o.value === storePay) || STORE_PAY_OPTIONS[0];
       let receiptUrl = receiptUrlMap[order.id];
       if (!receiptUrl) {
-        const dataUrl = generateReceiptDataUrl(order, price);
+        const dataUrl = generateReceiptDataUrl(order, price, opt.receiptLabel);
         const uploaded = await api.uploadMedia(dataUrl);
         receiptUrl = uploaded.url;
         setReceiptUrlMap((prev) => ({ ...prev, [order.id]: receiptUrl }));
@@ -167,10 +188,11 @@ export function DriverApp() {
       await api.proxyConfirmPurchase(order.id, {
         actual_subtotal: price,
         receipt_image_url: receiptUrl,
-        receipt_note: receiptNoteMap[order.id] || '店頭でテイクアウト注文・代理決済完了',
+        receipt_note: receiptNoteMap[order.id] || `店頭テイクアウト注文・${opt.label}決済完了`,
         driver_id: selectedDriverId,
+        driver_store_payment_method: storePay,
       });
-      notify(`実費 ${formatYen(price)} とレシートを登録しました！出来上がりを待ちます。`, 'success');
+      notify(`実費 ${formatYen(price)}（${opt.label}）とレシートを登録しました！`, 'success');
       await refreshData(selectedDriverId);
     } catch (err) {
       notify(err instanceof Error ? err.message : '登録に失敗しました', 'error');
@@ -208,10 +230,19 @@ export function DriverApp() {
   };
 
   const handleDeliver = async (order: Order) => {
+    if (order.payment_method === 'cash' && !cashConfirmedMap[order.id]) {
+      notify(`先に現金 ${formatYen(order.total_amount)} の受領確認にチェックを入れてください`, 'error');
+      return;
+    }
     setBusyId(order.id);
     try {
       await api.driverDeliver(order.id, undefined, selectedDriverId);
-      notify(`配達完了！報酬 ${formatYen(order.driver_payout)} が確定しました。`, 'success');
+      notify(
+        order.payment_method === 'cash'
+          ? `現金 ${formatYen(order.total_amount)} 回収＆配達完了！報酬 ${formatYen(order.driver_payout)} 確定`
+          : `配達完了！報酬 ${formatYen(order.driver_payout)} が確定しました。`,
+        'success'
+      );
       await refreshData(selectedDriverId);
     } catch (err) {
       notify(err instanceof Error ? err.message : '完了処理に失敗しました', 'error');
@@ -273,7 +304,13 @@ export function DriverApp() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {canInstallPwa && onInstallPwa && (
+              <button type="button" className="btn btn-drv-ghost btn-sm" onClick={onInstallPwa}>
+                <Download size={14} aria-hidden="true" />
+                アプリ追加
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-drv-ghost btn-sm"
@@ -365,6 +402,12 @@ export function DriverApp() {
                             {isProxy ? '店頭代理注文（Order & Pay）' : '公式提携ピックアップ'}
                           </span>
                           <StatusBadge status={order.status} orderType={order.order_type} />
+                          <PaymentBadge
+                            method={order.payment_method}
+                            label={order.payment_label}
+                            status={order.payment_status}
+                            dark
+                          />
                         </div>
                         <h2 style={{ margin: 0, fontSize: 19, fontWeight: 800 }}>{order.store_name}</h2>
                         <div style={{ fontSize: 12.5, color: 'var(--drv-muted)', marginTop: 3 }}>
@@ -376,6 +419,32 @@ export function DriverApp() {
                         <div className="driver-payout-big tabular-nums">{formatYen(order.driver_payout)}</div>
                       </div>
                     </div>
+
+                    {order.payment_method === 'cash' && (
+                      <div
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: 10,
+                          background: 'rgba(245, 158, 11, 0.16)',
+                          border: '1px solid rgba(245, 158, 11, 0.48)',
+                          color: '#fde68a',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <Banknote size={17} aria-hidden="true" />
+                        <span>
+                          代金引換（現金払い）：お届け先で現金{' '}
+                          <strong className="tabular-nums" style={{ color: '#fff', fontSize: 15 }}>
+                            {formatYen(order.total_amount)}
+                          </strong>{' '}
+                          を回収してください（置き配不可・対面手渡し）
+                        </span>
+                      </div>
+                    )}
 
                     <div className="driver-route-line">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -402,7 +471,7 @@ export function DriverApp() {
                       <div className="proxy-script-box">
                         <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: '#fcd34d' }}>
                           <Receipt size={15} style={{ verticalAlign: '-2px', marginRight: 5 }} aria-hidden="true" />
-                          店頭テイクアウト代理注文リスト（法人カード決済）
+                          店頭テイクアウト代理注文リスト（代理カード・現金立替・PayPay・Suica対応）
                         </h3>
                         {order.takeout_notes && (
                           <div style={{ fontSize: 12.5, color: '#fde68a', lineHeight: 1.55 }}>
@@ -448,6 +517,32 @@ export function DriverApp() {
                               gap: 10,
                             }}
                           >
+                            <div>
+                              <label
+                                htmlFor={`store-pay-${order.id}`}
+                                style={{ display: 'block', fontSize: 12, color: '#fcd34d', fontWeight: 700, marginBottom: 4 }}
+                              >
+                                店頭でのお支払い手段（券売機・キャッシュレス対応）
+                              </label>
+                              <select
+                                id={`store-pay-${order.id}`}
+                                className="driver-input"
+                                value={storePayMap[order.id] || 'proxy_card'}
+                                onChange={(e) =>
+                                  setStorePayMap((prev) => ({
+                                    ...prev,
+                                    [order.id]: e.target.value as DriverStorePaymentMethod,
+                                  }))
+                                }
+                              >
+                                {STORE_PAY_OPTIONS.map((opt) => (
+                                  <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                               <div>
                                 <label
@@ -551,9 +646,9 @@ export function DriverApp() {
                     )}
 
                     {/* Step Action Buttons */}
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                       {isProxy && order.status === 'driver_heading_to_store' && (
-                        <>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                           <button
                             type="button"
                             className="btn btn-drv-ghost btn-sm"
@@ -571,7 +666,7 @@ export function DriverApp() {
                           >
                             店舗に到着・持ち帰り注文を開始
                           </button>
-                        </>
+                        </div>
                       )}
 
                       {((isProxy && order.status === 'proxy_waiting') ||
@@ -605,24 +700,71 @@ export function DriverApp() {
 
                       {order.status === 'delivering' && (
                         <>
-                          <button
-                            type="button"
-                            className="btn btn-drv-ghost"
-                            onClick={() => void handleMoveCloserGps(order)}
-                          >
-                            <Navigation size={15} />
-                            GPSをお届け先へ進める
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-drv-emerald btn-lg"
-                            style={{ flex: 1 }}
-                            disabled={busyId === order.id}
-                            onClick={() => void handleDeliver(order)}
-                          >
-                            <CheckCircle2 size={18} />
-                            配達完了を報告（+{formatYen(order.driver_payout)}）
-                          </button>
+                          {order.payment_method === 'cash' && (
+                            <label
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                padding: '12px 14px',
+                                borderRadius: 12,
+                                background: cashConfirmedMap[order.id]
+                                  ? 'rgba(16, 185, 129, 0.16)'
+                                  : 'rgba(245, 158, 11, 0.18)',
+                                border: cashConfirmedMap[order.id]
+                                  ? '1px solid rgba(16, 185, 129, 0.5)'
+                                  : '1px solid rgba(245, 158, 11, 0.55)',
+                                cursor: 'pointer',
+                                fontSize: 13.5,
+                                fontWeight: 700,
+                                color: '#fff',
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={Boolean(cashConfirmedMap[order.id])}
+                                onChange={(e) =>
+                                  setCashConfirmedMap((prev) => ({
+                                    ...prev,
+                                    [order.id]: e.target.checked,
+                                  }))
+                                }
+                                style={{ width: 18, height: 18, accentColor: '#10b981' }}
+                              />
+                              <span>
+                                お客様から現金{' '}
+                                <strong className="tabular-nums" style={{ color: '#fcd34d' }}>
+                                  {formatYen(order.total_amount)}
+                                </strong>{' '}
+                                を受領しました（領収確認）
+                              </span>
+                            </label>
+                          )}
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="btn btn-drv-ghost"
+                              onClick={() => void handleMoveCloserGps(order)}
+                            >
+                              <Navigation size={15} />
+                              GPSをお届け先へ進める
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-drv-emerald btn-lg"
+                              style={{ flex: 1 }}
+                              disabled={
+                                busyId === order.id ||
+                                (order.payment_method === 'cash' && !cashConfirmedMap[order.id])
+                              }
+                              onClick={() => void handleDeliver(order)}
+                            >
+                              <CheckCircle2 size={18} />
+                              {order.payment_method === 'cash'
+                                ? `現金受領＆配達完了（+${formatYen(order.driver_payout)}）`
+                                : `配達完了を報告（+${formatYen(order.driver_payout)}）`}
+                            </button>
+                          </div>
                         </>
                       )}
                     </div>
@@ -702,13 +844,27 @@ export function DriverApp() {
                           <div className="driver-payout-big tabular-nums">{formatYen(job.driver_payout)}</div>
                         </div>
 
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                          <PaymentBadge
+                            method={job.payment_method}
+                            label={job.payment_label}
+                            status={job.payment_status}
+                            dark
+                          />
+                          {job.payment_method === 'cash' && (
+                            <span style={{ fontSize: 12, color: '#fcd34d', fontWeight: 700 }}>
+                              要現金回収 {formatYen(job.total_amount)}
+                            </span>
+                          )}
+                        </div>
+
                         <div style={{ fontSize: 12.5, color: '#cbd5e1' }}>
                           商品 {job.items.reduce((s, i) => s + i.quantity, 0)}点 → {job.delivery_address}
                         </div>
 
                         {isProxy && (
                           <div style={{ fontSize: 12, color: '#fcd34d' }}>
-                            店頭立替目安：{formatYen(job.estimated_subtotal)}（MachiEats代理カード利用）
+                            店頭立替目安：{formatYen(job.estimated_subtotal)}（代理カード・現金立替・PayPay・Suica可）
                           </div>
                         )}
 

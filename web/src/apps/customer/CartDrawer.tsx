@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Plus, Minus, Trash2, ShoppingBag, Receipt } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingBag, Receipt, ChevronRight, Tag } from 'lucide-react';
 import { api, formatYen } from '../../api/client';
 import { OrderTypeBadge } from '../../components/StatusBadge';
+import { PaymentLogo, previewDiscount, usePaymentWallet } from '../../components/PaymentBadge';
 import { useModalA11y } from '../../hooks/useModalA11y';
 import type { CartItem, Order, PlatformSettings, Store } from '../../types';
 
@@ -9,12 +10,14 @@ interface CartDrawerProps {
   store: Store | null;
   items: CartItem[];
   settings: PlatformSettings;
+  wallet: ReturnType<typeof usePaymentWallet>;
   customerName: string;
   deliveryAddress: string;
   onChangeCustomerName: (v: string) => void;
   onChangeDeliveryAddress: (v: string) => void;
   onUpdateQty: (key: string, delta: number) => void;
   onClear: () => void;
+  onOpenWallet: () => void;
   onClose: () => void;
   onOrderPlaced: (order: Order) => void;
 }
@@ -23,12 +26,14 @@ export function CartDrawer({
   store,
   items,
   settings,
+  wallet,
   customerName,
   deliveryAddress,
   onChangeCustomerName,
   onChangeDeliveryAddress,
   onUpdateQty,
   onClear,
+  onOpenWallet,
   onClose,
   onOrderPlaced,
 }: CartDrawerProps) {
@@ -44,7 +49,14 @@ export function CartDrawer({
   const subtotal = items.reduce((s, it) => s + it.unit_price * it.quantity, 0);
   const serviceFee = Math.round(subtotal * settings.service_fee_rate);
   const proxyFee = isPartner ? 0 : settings.proxy_order_fee;
-  const total = subtotal + settings.base_delivery_fee + serviceFee + proxyFee + tipAmount;
+  const discount = previewDiscount(
+    wallet.voucherCode,
+    wallet.useWalletCash,
+    subtotal,
+    proxyFee,
+    wallet.selectedMethod.type
+  );
+  const total = Math.max(0, subtotal + settings.base_delivery_fee + serviceFee + proxyFee + tipAmount - discount);
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +69,10 @@ export function CartDrawer({
         customer_name: customerName.trim() || 'ゲストユーザー',
         customer_phone: '090-1234-5678',
         delivery_address: deliveryAddress.trim() || '東京都渋谷区桜丘町15-14 402',
-        delivery_note: deliveryNote.trim(),
+        delivery_note:
+          wallet.selectedMethod.type === 'cash'
+            ? `${deliveryNote.trim()}（現金払い・手渡し）`.trim()
+            : deliveryNote.trim(),
         items: items.map((it) => ({
           menu_item_id: it.menu_item_id,
           name: it.name,
@@ -67,6 +82,11 @@ export function CartDrawer({
           note: it.note,
         })),
         tip_amount: tipAmount,
+        payment_method: wallet.selectedMethod.type,
+        payment_label: wallet.selectedMethod.label,
+        billing_profile: wallet.billingProfile,
+        voucher_code: wallet.voucherCode,
+        use_wallet_cash: wallet.useWalletCash,
         substitution_policy: substitutionPolicy,
         max_budget_overage: isPartner ? 0 : maxOverage,
       });
@@ -101,7 +121,7 @@ export function CartDrawer({
 
         {!store || items.length === 0 ? (
           <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--ink-muted)' }}>
-            <ShoppingBag size={42} strokeWidth={1.5} />
+            <ShoppingBag size={42} strokeWidth={1.5} aria-hidden="true" />
             <p style={{ margin: 0, fontWeight: 700 }}>カートは空です</p>
             <p style={{ margin: 0, fontSize: 13, textAlign: 'center' }}>
               お店を選んでメニューを追加してください。
@@ -118,7 +138,7 @@ export function CartDrawer({
                   </div>
                 </div>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={onClear}>
-                  <Trash2 size={14} />
+                  <Trash2 size={14} aria-hidden="true" />
                   空にする
                 </button>
               </div>
@@ -126,7 +146,7 @@ export function CartDrawer({
               {!store.is_partner && (
                 <div className="proxy-notice-box" style={{ marginBottom: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, marginBottom: 3 }}>
-                    <Receipt size={15} />
+                    <Receipt size={15} aria-hidden="true" />
                     店頭持ち帰り代理注文モード
                   </div>
                   ドライバーが店頭で持ち帰り注文・代理決済し、レシート写真と実費金額を共有します。
@@ -171,14 +191,57 @@ export function CartDrawer({
                 </div>
               )}
 
+              {/* Payment Method Quick Selector + Wallet Link */}
               <div className="field">
-                <label className="field-label">お名前</label>
-                <input className="input" value={customerName} onChange={(e) => onChangeCustomerName(e.target.value)} required />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className="field-label">
+                    お支払い方法（{wallet.billingProfile === 'business' ? 'ビジネス' : '個人'}）
+                  </span>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '2px 6px' }} onClick={onOpenWallet}>
+                    支払い設定へ <ChevronRight size={14} aria-hidden="true" />
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} role="radiogroup" aria-label="決済方法クイック選択">
+                  {wallet.methods.map((m) => {
+                    const active = wallet.selectedMethod.id === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        className={`option-pill ${active ? 'selected' : ''}`}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 10px' }}
+                        onClick={() => wallet.selectMethod(m.id)}
+                      >
+                        <PaymentLogo type={m.type} brand={m.brand} />
+                        <span>{m.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {wallet.selectedMethod.type === 'cash' && (
+                  <span className="field-hint" style={{ color: 'var(--proxy-amber)', fontWeight: 700 }}>
+                    ※現金払いは玄関先でドライバーへ直接お支払いください（置き配不可）。
+                  </span>
+                )}
+                {wallet.selectedMethod.promoHint && (
+                  <span className="field-hint" style={{ color: 'var(--brand-green)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Tag size={12} aria-hidden="true" />
+                    {wallet.selectedMethod.promoHint}
+                  </span>
+                )}
               </div>
 
               <div className="field">
-                <label className="field-label">お届け先住所</label>
+                <label htmlFor="cart-customer-name" className="field-label">お名前</label>
+                <input id="cart-customer-name" className="input" value={customerName} onChange={(e) => onChangeCustomerName(e.target.value)} required />
+              </div>
+
+              <div className="field">
+                <label htmlFor="cart-delivery-address" className="field-label">お届け先住所</label>
                 <input
+                  id="cart-delivery-address"
                   className="input"
                   value={deliveryAddress}
                   onChange={(e) => onChangeDeliveryAddress(e.target.value)}
@@ -187,15 +250,16 @@ export function CartDrawer({
               </div>
 
               <div className="field">
-                <label className="field-label">配達指示・置き配メモ</label>
-                <input className="input" value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} />
+                <label htmlFor="cart-delivery-note" className="field-label">配達指示・置き配メモ</label>
+                <input id="cart-delivery-note" className="input" value={deliveryNote} onChange={(e) => setDeliveryNote(e.target.value)} />
               </div>
 
               {!isPartner && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div className="field">
-                    <label className="field-label">品切れ時の対応</label>
+                    <label htmlFor="cart-sub-policy" className="field-label">品切れ時の対応</label>
                     <select
+                      id="cart-sub-policy"
                       className="select"
                       value={substitutionPolicy}
                       onChange={(e) => setSubstitutionPolicy(e.target.value as 'contact' | 'similar' | 'cancel_item')}
@@ -206,8 +270,8 @@ export function CartDrawer({
                     </select>
                   </div>
                   <div className="field">
-                    <label className="field-label">実費差額の許容</label>
-                    <select className="select" value={maxOverage} onChange={(e) => setMaxOverage(Number(e.target.value))}>
+                    <label htmlFor="cart-max-overage" className="field-label">実費差額の許容</label>
+                    <select id="cart-max-overage" className="select" value={maxOverage} onChange={(e) => setMaxOverage(Number(e.target.value))}>
                       <option value={300}>+¥300まで</option>
                       <option value={500}>+¥500まで</option>
                       <option value={1000}>+¥1,000まで</option>
@@ -217,7 +281,7 @@ export function CartDrawer({
               )}
 
               <div className="field">
-                <label className="field-label">ドライバーへのチップ</label>
+                <span className="field-label">ドライバーへのチップ</span>
                 <div style={{ display: 'flex', gap: 6 }}>
                   {[0, 100, 200, 300].map((v) => (
                     <button
@@ -257,8 +321,18 @@ export function CartDrawer({
                     <span className="tabular-nums">{formatYen(tipAmount)}</span>
                   </div>
                 )}
+                {discount > 0 && (
+                  <div className="price-line" style={{ color: 'var(--brand-green)', fontWeight: 700 }}>
+                    <span>
+                      割引（{wallet.voucherCode ? `バウチャー ${wallet.voucherCode}` : ''}
+                      {wallet.voucherCode && wallet.useWalletCash ? ' + ' : ''}
+                      {wallet.useWalletCash ? 'MachiEats Cash' : ''}）
+                    </span>
+                    <span className="tabular-nums">-{formatYen(discount)}</span>
+                  </div>
+                )}
                 <div className="price-line total">
-                  <span>合計{!isPartner ? '（目安）' : ''}</span>
+                  <span>合計（{wallet.selectedMethod.label}）</span>
                   <span className="tabular-nums">{formatYen(total)}</span>
                 </div>
               </div>
@@ -273,9 +347,7 @@ export function CartDrawer({
               >
                 {submitting
                   ? '注文を送信中...'
-                  : isPartner
-                  ? `注文を確定する（${formatYen(total)}）`
-                  : `持ち帰り代理注文を確定（目安 ${formatYen(total)}）`}
+                  : `${wallet.selectedMethod.label}で注文確定（${formatYen(total)}）`}
               </button>
             </div>
           </form>

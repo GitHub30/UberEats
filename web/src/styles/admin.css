@@ -2,10 +2,11 @@
    Admin Operations Console
    ========================================================= */
 .admin-shell {
-  min-height: calc(100vh - 50px);
+  min-height: 100vh;
   background: var(--bg-canvas);
   display: grid;
   grid-template-columns: 236px 1fr;
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 .admin-sidebar {

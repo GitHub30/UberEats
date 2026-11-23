@@ -1,3 +1,25 @@
+export type PaymentMethodType =
+  | 'credit_card'
+  | 'cash'
+  | 'paypay'
+  | 'suica'
+  | 'apple_pay'
+  | 'rakuten_pay'
+  | 'd_barai';
+
+export type PaymentStatus = 'paid' | 'cash_on_delivery' | 'cash_collected' | 'refunded';
+export type BillingProfile = 'personal' | 'business';
+export type DriverStorePaymentMethod = 'proxy_card' | 'cash' | 'paypay' | 'suica';
+
+export interface WalletMethod {
+  id: string;
+  type: PaymentMethodType;
+  label: string;
+  sublabel?: string;
+  brand?: 'visa' | 'mastercard' | 'jcb' | 'amex';
+  promoHint?: string;
+}
+
 export interface PlatformSettings {
   id: number;
   base_delivery_fee: number;
@@ -127,9 +149,15 @@ export interface Order {
   service_fee: number;
   proxy_fee: number;
   tip_amount: number;
+  discount_amount: number;
+  voucher_code: string;
   total_amount: number;
   driver_payout: number;
-  payment_method: string;
+  payment_method: PaymentMethodType;
+  payment_label: string;
+  payment_status: PaymentStatus;
+  billing_profile: BillingProfile;
+  driver_store_payment_method: DriverStorePaymentMethod;
   substitution_policy: 'contact' | 'similar' | 'cancel_item';
   max_budget_overage: number;
   receipt_image_url: string | null;
@@ -190,6 +218,7 @@ export interface AdminAnalytics {
     proxy_capable_drivers: number;
   };
   status_counts: Record<string, number>;
+  payment_breakdown: Array<{ payment_method: PaymentMethodType; count: number; total_amount: number }>;
   recent_events: OrderEvent[];
 }
 

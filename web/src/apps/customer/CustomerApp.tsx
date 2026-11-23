@@ -1,18 +1,23 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   MapPin,
   Search,
-  ShoppingBag,
+  ShoppingCart,
   Star,
   Clock,
   Receipt,
   Sparkles,
-  Store as StoreIcon,
-  ClipboardList,
+  Bell,
+  ChevronDown,
+  Home,
+  User,
+  Download,
   HelpCircle,
+  X,
 } from 'lucide-react';
 import { api, formatYen, resolveAssetUrl } from '../../api/client';
 import { OrderTypeBadge } from '../../components/StatusBadge';
+import { PaymentLogo, usePaymentWallet } from '../../components/PaymentBadge';
 import { useToast } from '../../components/Toast';
 import { FAQ_ENTRIES } from '../../seo/routes';
 import type { CartItem, Order, PlatformSettings, Store } from '../../types';
@@ -20,12 +25,31 @@ import { StoreDetailModal } from './StoreDetailModal';
 import { CustomStoreModal } from './CustomStoreModal';
 import { CartDrawer } from './CartDrawer';
 import { OrderTracker } from './OrderTracker';
+import { PaymentWalletView } from './PaymentWalletView';
 
-const CATEGORIES = ['すべて', 'バーガー', '寿司', 'カレー', 'カフェ', '町中華', 'ラーメン', '洋食', '焼き鳥・弁当'];
+const CATEGORY_ITEMS = [
+  { id: 'すべて', label: 'すべて', icon: '🍽️' },
+  { id: 'バーガー', label: 'バーガー', icon: '🍔' },
+  { id: '寿司', label: '寿司', icon: '🍣' },
+  { id: 'ラーメン', label: 'ラーメン', icon: '🍜' },
+  { id: 'カレー', label: 'カレー', icon: '🍛' },
+  { id: '町中華', label: '町中華', icon: '🥟' },
+  { id: '洋食', label: '洋食', icon: '🍳' },
+  { id: 'カフェ', label: 'カフェ', icon: '🍵' },
+  { id: '焼き鳥・弁当', label: '焼鳥・弁当', icon: '🍱' },
+];
 
-export function CustomerApp() {
+interface CustomerAppProps {
+  canInstallPwa?: boolean;
+  onInstallPwa?: () => void;
+}
+
+export function CustomerApp({ canInstallPwa, onInstallPwa }: CustomerAppProps) {
   const { notify } = useToast();
-  const [view, setView] = useState<'browse' | 'orders'>('browse');
+  const wallet = usePaymentWallet();
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [view, setView] = useState<'browse' | 'orders' | 'wallet'>('browse');
   const [stores, setStores] = useState<Store[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<PlatformSettings | null>(null);
@@ -33,7 +57,14 @@ export function CustomerApp() {
 
   const [partnerFilter, setPartnerFilter] = useState<'all' | '1' | '0'>('all');
   const [category, setCategory] = useState('すべて');
+  const [fastOnly, setFastOnly] = useState(false);
+  const [topRatedOnly, setTopRatedOnly] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState('');
+
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [customerName, setCustomerName] = useState('山田 花子');
+  const [deliveryAddress, setDeliveryAddress] = useState('東京都渋谷区桜丘町15-14 渋谷レジデンス 402');
 
   const [activeStoreId, setActiveStoreId] = useState<string | null>(() => {
     const sp = new URLSearchParams(window.location.search);
@@ -41,9 +72,6 @@ export function CustomerApp() {
   });
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showCart, setShowCart] = useState(false);
-
-  const [customerName, setCustomerName] = useState('山田 花子');
-  const [deliveryAddress, setDeliveryAddress] = useState('東京都渋谷区桜丘町15-14 渋谷レジデンス 402');
 
   const [cartStore, setCartStore] = useState<Store | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -71,6 +99,8 @@ export function CustomerApp() {
     if (partnerFilter === '1' && !s.is_partner) return false;
     if (partnerFilter === '0' && s.is_partner) return false;
     if (category !== 'すべて' && s.category !== category) return false;
+    if (fastOnly && s.avg_prep_min + 12 > 30) return false;
+    if (topRatedOnly && s.rating < 4.8) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       return (
@@ -120,82 +150,130 @@ export function CustomerApp() {
     await fetchAll();
     notify(
       order.order_type === 'proxy_takeout'
-        ? `店頭代理注文（${order.id}）をドライバーへ送信しました！`
-        : `注文（${order.id}）を店舗へ送信しました！`,
+        ? `店頭代理注文（${order.id} / ${order.payment_label}）をドライバーへ送信しました！`
+        : `注文（${order.id} / ${order.payment_label}）を店舗へ送信しました！`,
       'success'
     );
   };
 
   const cartCount = cartItems.reduce((s, it) => s + it.quantity, 0);
-  const cartSubtotal = cartItems.reduce((s, it) => s + it.unit_price * it.quantity, 0);
   const activeOrdersCount = orders.filter((o) => !['delivered', 'cancelled'].includes(o.status)).length;
+  const shortAddress = deliveryAddress.replace(/^東京都/, '').slice(0, 18);
 
   return (
-    <div>
-      <div className="cust-header" role="region" aria-label="検索・配達先バー">
-        <div className="cust-header-inner">
-          <div className="cust-address-pill" title="配達先住所（カート画面で変更可能）">
-            <MapPin size={15} color="#047843" aria-hidden="true" />
-            <span>{deliveryAddress.slice(0, 22)}{deliveryAddress.length > 22 ? '…' : ''}</span>
+    <div className="ue-app-shell">
+      {/* Standalone Uber Eats Japan White Header (NO cross-app header!) */}
+      {view !== 'wallet' && (
+        <header className="ue-top-bar">
+          <div className="ue-top-bar-inner">
+            <div className="ue-location-row">
+              <button
+                type="button"
+                className="ue-address-btn"
+                onClick={() => setEditingAddress((v) => !v)}
+                aria-expanded={editingAddress}
+                aria-label="お届け先住所を変更"
+              >
+                <MapPin size={19} strokeWidth={2.3} aria-hidden="true" />
+                <span>{shortAddress}{deliveryAddress.length > 21 ? '…' : ''}</span>
+                <ChevronDown size={17} aria-hidden="true" />
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {canInstallPwa && onInstallPwa && (
+                  <button
+                    type="button"
+                    id="pwa-install-btn"
+                    className="btn btn-primary btn-sm"
+                    style={{ borderRadius: 999, padding: '6px 12px', fontSize: 12 }}
+                    onClick={onInstallPwa}
+                  >
+                    <Download size={13} aria-hidden="true" />
+                    アプリ追加
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="ue-bell-btn"
+                  aria-label={`注文状況・通知（進行中 ${activeOrdersCount} 件）`}
+                  onClick={() => {
+                    setView(view === 'orders' ? 'browse' : 'orders');
+                    void fetchAll();
+                  }}
+                >
+                  <Bell size={22} strokeWidth={2} aria-hidden="true" />
+                  {activeOrdersCount > 0 && <span className="ue-badge-dot">{activeOrdersCount}</span>}
+                </button>
+              </div>
+            </div>
+
+            {editingAddress && (
+              <div style={{ display: 'flex', gap: 8, paddingBottom: 10 }}>
+                <input
+                  className="input"
+                  aria-label="お届け先住所入力"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  placeholder="お届け先住所を入力..."
+                />
+                <button
+                  type="button"
+                  className="btn btn-dark btn-sm"
+                  onClick={() => {
+                    setEditingAddress(false);
+                    notify('お届け先を更新しました', 'success');
+                  }}
+                >
+                  決定
+                </button>
+              </div>
+            )}
+
+            {view === 'browse' && (
+              <nav className="ue-top-tabs" aria-label="お店種別タブ">
+                <button
+                  type="button"
+                  className={`ue-top-tab ${partnerFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setPartnerFilter('all')}
+                >
+                  すべて
+                </button>
+                <button
+                  type="button"
+                  className={`ue-top-tab ${partnerFilter === '1' ? 'active' : ''}`}
+                  onClick={() => setPartnerFilter('1')}
+                >
+                  公式提携店
+                </button>
+                <button
+                  type="button"
+                  className={`ue-top-tab ${partnerFilter === '0' ? 'active' : ''}`}
+                  onClick={() => setPartnerFilter('0')}
+                >
+                  非提携・持ち帰り代理
+                </button>
+                <button
+                  type="button"
+                  className="ue-top-tab"
+                  style={{ color: 'var(--proxy-amber)' }}
+                  onClick={() => setShowCustomModal(true)}
+                >
+                  ＋ 掲載外のお店を頼む
+                </button>
+              </nav>
+            )}
           </div>
+        </header>
+      )}
 
-          <div className="cust-search-wrap">
-            <Search size={16} className="cust-search-icon" aria-hidden="true" />
-            <label htmlFor="customer-search-input" className="sr-only">
-              お店・ジャンル・エリアで検索
-            </label>
-            <input
-              id="customer-search-input"
-              className="cust-search-input"
-              placeholder="お店・ジャンル・エリアで検索（例：町中華、渋谷、ラーメン）"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                if (view !== 'browse') setView('browse');
-              }}
-            />
-          </div>
-
-          <div className="cust-header-actions">
-            <button
-              type="button"
-              id="customer-orders-tab"
-              className={`btn btn-sm ${view === 'orders' ? 'btn-dark' : 'btn-outline'}`}
-              onClick={() => {
-                setView(view === 'orders' ? 'browse' : 'orders');
-                void fetchAll();
-              }}
-            >
-              <ClipboardList size={15} aria-hidden="true" />
-              注文状況
-              {activeOrdersCount > 0 && (
-                <span className="badge badge-partner" style={{ padding: '2px 7px', fontSize: 11 }}>
-                  {activeOrdersCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              id="customer-cart-btn"
-              className="btn btn-primary btn-sm"
-              onClick={() => setShowCart(true)}
-            >
-              <ShoppingBag size={15} aria-hidden="true" />
-              カート ({cartCount})
-              {cartCount > 0 && <span className="tabular-nums">・{formatYen(cartSubtotal)}</span>}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <main className="cust-main">
-        {view === 'orders' ? (
+      <main className={view === 'wallet' ? '' : 'cust-main'} style={view === 'wallet' ? undefined : { paddingTop: 12 }}>
+        {view === 'wallet' ? (
+          <PaymentWalletView wallet={wallet} onBack={() => setView('browse')} />
+        ) : view === 'orders' ? (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>リアルタイム注文状況・履歴</h1>
               <button type="button" className="btn btn-outline btn-sm" onClick={() => setView('browse')}>
-                <StoreIcon size={15} aria-hidden="true" />
                 お店一覧に戻る
               </button>
             </div>
@@ -208,6 +286,97 @@ export function CustomerApp() {
           </div>
         ) : (
           <div className="animate-fade">
+            {searchOpen && (
+              <div className="ue-search-bar-panel">
+                <Search size={16} className="cust-search-icon" aria-hidden="true" />
+                <label htmlFor="customer-search-input" className="sr-only">
+                  お店・ジャンル・エリアで検索
+                </label>
+                <input
+                  ref={searchInputRef}
+                  id="customer-search-input"
+                  className="cust-search-input"
+                  placeholder="お店・料理・エリアで検索（例：町中華、渋谷、ラーメン）"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                {search && (
+                  <button
+                    type="button"
+                    aria-label="検索をクリア"
+                    onClick={() => setSearch('')}
+                    style={{
+                      position: 'absolute',
+                      right: 10,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      border: 'none',
+                      background: 'transparent',
+                      padding: 4,
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Category Icon Rail (Uber Eats Japan Style) */}
+            <div className="ue-cat-rail" role="group" aria-label="料理ジャンル">
+              {CATEGORY_ITEMS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  aria-pressed={category === c.id}
+                  className={`ue-cat-item ${category === c.id ? 'active' : ''}`}
+                  onClick={() => setCategory(c.id)}
+                >
+                  <span className="ue-cat-icon" aria-hidden="true">{c.icon}</span>
+                  <span>{c.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Horizontal Quick Filter Pills */}
+            <div className="ue-filter-pills" role="group" aria-label="クイック絞り込み">
+              <button
+                type="button"
+                aria-pressed={partnerFilter === '0'}
+                className={`ue-pill-btn proxy ${partnerFilter === '0' ? 'active' : ''}`}
+                onClick={() => setPartnerFilter(partnerFilter === '0' ? 'all' : '0')}
+              >
+                <Receipt size={14} aria-hidden="true" />
+                非提携・持ち帰り代理
+              </button>
+              <button
+                type="button"
+                aria-pressed={fastOnly}
+                className={`ue-pill-btn ${fastOnly ? 'active' : ''}`}
+                onClick={() => setFastOnly((v) => !v)}
+              >
+                <Clock size={14} aria-hidden="true" />
+                30分以内
+              </button>
+              <button
+                type="button"
+                aria-pressed={topRatedOnly}
+                className={`ue-pill-btn ${topRatedOnly ? 'active' : ''}`}
+                onClick={() => setTopRatedOnly((v) => !v)}
+              >
+                <Star size={14} aria-hidden="true" />
+                高評価 4.8+
+              </button>
+              <button
+                type="button"
+                className="ue-pill-btn"
+                onClick={() => setView('wallet')}
+              >
+                <PaymentLogo type={wallet.selectedMethod.type} brand={wallet.selectedMethod.brand} />
+                <span>{wallet.selectedMethod.label}</span>
+              </button>
+            </div>
+
+            {/* Hero + Unlisted Proxy Request Banner */}
             <section className="cust-promo-grid">
               <div className="cust-hero-card">
                 <img
@@ -222,7 +391,7 @@ export function CustomerApp() {
                 <div className="cust-hero-overlay">
                   <h1>提携店も、街の非提携の名店も。</h1>
                   <p>
-                    公式提携店のスムーズな配達から、デリバリー未対応の町中華・行列ラーメンの「ドライバー店頭持ち帰り代理注文」まで、ワンアプリでお届けします。
+                    現金・クレジットカード・PayPay・モバイルSuica対応。非提携の町中華や行列ラーメンもドライバーが店頭で持ち帰り購入してお届けします。
                   </p>
                 </div>
               </div>
@@ -235,7 +404,7 @@ export function CustomerApp() {
                   </div>
                   <h2>載っていないお店も、ドライバーが買いに行きます</h2>
                   <p style={{ marginTop: 6 }}>
-                    商店街のお惣菜店や地元のお気に入り食堂など、アプリ未掲載のお店の名前とメニューを入力するだけで代理購入リクエストが可能です。
+                    商店街のお惣菜店や地元のお気に入り食堂など、未掲載のお店でも店名とメニューを入力するだけで代理注文できます。
                   </p>
                 </div>
                 <button
@@ -250,68 +419,26 @@ export function CustomerApp() {
               </div>
             </section>
 
-            <div className="cust-filters-bar">
-              <div className="segmented" role="group" aria-label="提携種別フィルタ">
-                <button
-                  type="button"
-                  aria-pressed={partnerFilter === 'all'}
-                  className={`segmented-btn ${partnerFilter === 'all' ? 'active' : ''}`}
-                  onClick={() => setPartnerFilter('all')}
-                >
-                  すべて（{stores.length}）
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={partnerFilter === '1'}
-                  className={`segmented-btn ${partnerFilter === '1' ? 'active' : ''}`}
-                  onClick={() => setPartnerFilter('1')}
-                >
-                  公式提携店（{stores.filter((s) => s.is_partner).length}）
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={partnerFilter === '0'}
-                  className={`segmented-btn seg-proxy ${partnerFilter === '0' ? 'active' : ''}`}
-                  onClick={() => setPartnerFilter('0')}
-                >
-                  非提携・代理持ち帰り（{stores.filter((s) => !s.is_partner).length}）
-                </button>
+            {/* Restaurant Grid */}
+            <section aria-labelledby="catalog-list-heading">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <h2 id="catalog-list-heading" style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>
+                  MachiEats で紹介（{filteredStores.length}店舗）
+                </h2>
+                {settings && (
+                  <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
+                    配達料 {formatYen(settings.base_delivery_fee)}〜
+                  </span>
+                )}
               </div>
 
-              {settings && (
-                <span style={{ fontSize: 12.5, color: 'var(--ink-muted)' }}>
-                  基本配達料 <strong className="tabular-nums">{formatYen(settings.base_delivery_fee)}</strong> ・ 非提携代理手数料{' '}
-                  <strong className="tabular-nums">{formatYen(settings.proxy_order_fee)}</strong>
-                </span>
-              )}
-            </div>
-
-            <div className="category-strip" role="group" aria-label="ジャンル絞り込み">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  aria-pressed={category === cat}
-                  className={`cat-chip ${category === cat ? 'active' : ''}`}
-                  onClick={() => setCategory(cat)}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-
-            <section aria-labelledby="catalog-list-heading">
-              <h2 id="catalog-list-heading" className="sr-only">
-                掲載レストラン一覧（公式提携・非提携代理持ち帰り対応）
-              </h2>
-
               {loading ? (
-                <div className="store-grid" aria-busy="true">
+                <div className="ue-store-grid" aria-busy="true">
                   {[0, 1, 2, 3].map((idx) => (
                     <div
                       key={idx}
                       className="store-card"
-                      style={{ minHeight: 310, background: 'var(--bg-subtle)' }}
+                      style={{ minHeight: 240, background: 'var(--bg-subtle)' }}
                     />
                   ))}
                 </div>
@@ -323,7 +450,7 @@ export function CustomerApp() {
                   </button>
                 </div>
               ) : (
-                <div className="store-grid">
+                <div className="ue-store-grid">
                   {filteredStores.map((store) => (
                     <article key={store.id} className={`store-card ${!store.is_open ? 'closed' : ''}`}>
                       <button
@@ -343,27 +470,26 @@ export function CustomerApp() {
                           <div className="store-card-badges">
                             <OrderTypeBadge isPartner={store.is_partner} />
                             {!store.is_open && <span className="badge badge-danger">準備中</span>}
-                            {store.is_open && store.busy_mode && <span className="badge badge-warn">混雑中</span>}
                           </div>
                         </div>
 
                         <div className="store-card-body">
-                          <div className="store-card-title-row">
-                            <h3 className="store-card-title">{store.name}</h3>
-                            <span className="store-rating-pill tabular-nums">
-                              <Star size={12} fill="#d97706" color="#d97706" aria-hidden="true" />
-                              {store.rating.toFixed(1)}
+                          <h3 className="store-card-title">{store.name}</h3>
+                          <div className="store-card-meta tabular-nums">
+                            <span>
+                              {store.is_partner
+                                ? `配達手数料 ${formatYen(settings?.base_delivery_fee ?? 320)}`
+                                : `代理手数料 ${formatYen(settings?.proxy_order_fee ?? 250)}`}
                             </span>
                           </div>
-                          <div className="store-card-meta">
-                            <span>{store.area}</span>
-                            <span aria-hidden="true">•</span>
-                            <span>{store.category}</span>
-                            <span aria-hidden="true">•</span>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                              <Clock size={12} aria-hidden="true" />
-                              {store.avg_prep_min + 12}〜{store.avg_prep_min + 22}分
+                          <div className="store-card-meta tabular-nums" style={{ color: 'var(--ink-primary)', fontWeight: 700 }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+                              {store.rating.toFixed(1)}
+                              <Star size={12} fill="#141413" color="#141413" aria-hidden="true" />
+                              ({store.review_count})
                             </span>
+                            <span>・</span>
+                            <span>{store.avg_prep_min + 12} 分</span>
                           </div>
                           <p className="store-card-desc">{store.description}</p>
                         </div>
@@ -378,7 +504,7 @@ export function CustomerApp() {
             <section className="faq-section" aria-labelledby="customer-faq-heading" style={{ marginTop: 42 }}>
               <h2 id="customer-faq-heading" style={{ fontSize: 18, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 7, margin: '0 0 14px' }}>
                 <HelpCircle size={18} color="#047843" aria-hidden="true" />
-                注文・非提携代理持ち帰りに関するよくある質問
+                注文・お支払い・非提携代理持ち帰りに関するよくある質問
               </h2>
               <div className="faq-list">
                 {FAQ_ENTRIES.map((faq) => (
@@ -393,6 +519,68 @@ export function CustomerApp() {
         )}
       </main>
 
+      {/* Floating Uber Eats Japan Pill Bottom Navigation Bar */}
+      <nav className="ue-bottom-nav" aria-label="ボトムナビゲーション">
+        <button
+          type="button"
+          className={`ue-nav-circle ${view === 'browse' && !searchOpen ? 'active' : ''}`}
+          aria-label="ホーム（お店一覧）"
+          onClick={() => {
+            setView('browse');
+            setSearchOpen(false);
+          }}
+        >
+          <Home size={20} aria-hidden="true" />
+        </button>
+
+        <button
+          type="button"
+          className={`ue-nav-circle ${view === 'orders' ? 'active' : ''}`}
+          aria-label={`注文状況・配達追跡（進行中 ${activeOrdersCount} 件）`}
+          onClick={() => {
+            setView('orders');
+            void fetchAll();
+          }}
+        >
+          <MapPin size={20} aria-hidden="true" />
+          {activeOrdersCount > 0 && <span className="ue-badge-dot">{activeOrdersCount}</span>}
+        </button>
+
+        <button
+          type="button"
+          className={`ue-nav-search-pill ${searchOpen ? 'active' : ''}`}
+          onClick={() => {
+            setView('browse');
+            setSearchOpen(true);
+            window.setTimeout(() => searchInputRef.current?.focus(), 60);
+          }}
+        >
+          <Search size={18} aria-hidden="true" />
+          <span>検索</span>
+        </button>
+
+        <button
+          type="button"
+          id="customer-cart-btn"
+          className="ue-nav-circle"
+          aria-label={`カートを開く（${cartCount}点）`}
+          onClick={() => setShowCart(true)}
+        >
+          <ShoppingCart size={20} aria-hidden="true" />
+          {cartCount > 0 && <span className="ue-badge-dot">{cartCount}</span>}
+        </button>
+
+        <button
+          type="button"
+          id="customer-wallet-btn"
+          className={`ue-nav-circle ${view === 'wallet' ? 'active' : ''}`}
+          aria-label="支払い方法・アカウント設定"
+          onClick={() => setView('wallet')}
+        >
+          <User size={20} aria-hidden="true" />
+        </button>
+      </nav>
+
       {activeStoreId && (
         <StoreDetailModal
           storeId={activeStoreId}
@@ -404,8 +592,13 @@ export function CustomerApp() {
       {showCustomModal && settings && (
         <CustomStoreModal
           settings={settings}
+          wallet={wallet}
           defaultAddress={deliveryAddress}
           defaultName={customerName}
+          onOpenWallet={() => {
+            setShowCustomModal(false);
+            setView('wallet');
+          }}
           onClose={() => setShowCustomModal(false)}
           onCreated={handleOrderCreated}
         />
@@ -416,6 +609,7 @@ export function CustomerApp() {
           store={cartStore}
           items={cartItems}
           settings={settings}
+          wallet={wallet}
           customerName={customerName}
           deliveryAddress={deliveryAddress}
           onChangeCustomerName={setCustomerName}
@@ -424,6 +618,10 @@ export function CustomerApp() {
           onClear={() => {
             setCartItems([]);
             setCartStore(null);
+          }}
+          onOpenWallet={() => {
+            setShowCart(false);
+            setView('wallet');
           }}
           onClose={() => setShowCart(false)}
           onOrderPlaced={handleOrderCreated}

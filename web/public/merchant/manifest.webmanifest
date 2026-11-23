@@ -1,0 +1,20 @@
+{
+  "id": "/UberEats/merchant/",
+  "name": "MachiEats 店舗POS — 公式提携店受注タブレット",
+  "short_name": "MachiEats 店舗POS",
+  "description": "公式提携レストラン向けリアルタイム受注タブレットPWA。調理時間指定受注・調理完了・売り切れ在庫管理に対応。",
+  "start_url": "/UberEats/merchant/",
+  "scope": "/UberEats/merchant/",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "ja",
+  "dir": "ltr",
+  "theme_color": "#ffffff",
+  "background_color": "#f1f3f5",
+  "categories": ["business", "food"],
+  "icons": [
+    { "src": "/UberEats/icons/merchant-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/UberEats/icons/merchant-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/UberEats/icons/merchant-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

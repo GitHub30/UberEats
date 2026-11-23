@@ -1,0 +1,24 @@
+{
+  "id": "/UberEats/customer/",
+  "name": "MachiEats — フードデリバリー＆持ち帰り代理注文",
+  "short_name": "MachiEats",
+  "description": "公式提携レストランと非提携店舗（ドライバー店頭持ち帰り代理注文）から注文できるフードデリバリーPWA。現金・クレジットカード・PayPay・Suica対応。",
+  "start_url": "/UberEats/customer/",
+  "scope": "/UberEats/customer/",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "ja",
+  "dir": "ltr",
+  "theme_color": "#ffffff",
+  "background_color": "#ffffff",
+  "categories": ["food", "shopping", "lifestyle"],
+  "icons": [
+    { "src": "/UberEats/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/UberEats/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/UberEats/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "/UberEats/screenshots/desktop.jpg", "sizes": "1280x720", "type": "image/jpeg", "form_factor": "wide", "label": "MachiEats 注文アプリ デスクトップ画面" },
+    { "src": "/UberEats/screenshots/mobile.jpg", "sizes": "720x1280", "type": "image/jpeg", "form_factor": "narrow", "label": "MachiEats 注文アプリ モバイル画面" }
+  ]
+}

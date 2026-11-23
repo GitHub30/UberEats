@@ -3,6 +3,7 @@ import { Receipt, Star, RefreshCw, Bike, XCircle, CheckCircle2, Clock } from 'lu
 import { api, formatTime, formatYen } from '../../api/client';
 import { DeliveryMap } from '../../components/DeliveryMap';
 import { OrderChat } from '../../components/OrderChat';
+import { PaymentBadge } from '../../components/PaymentBadge';
 import { OrderTypeBadge, StatusBadge, substitutionLabel, vehicleLabel } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toast';
 import type { Order, OrderEvent, OrderMessage } from '../../types';
@@ -151,6 +152,7 @@ export function OrderTracker({ orders, selectedOrderId, onSelectOrder, onRefresh
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               <StatusBadge status={o.status} orderType={o.order_type} />
               {o.order_type === 'proxy_takeout' && <span className="badge badge-proxy">代理持ち帰り</span>}
+              <PaymentBadge method={o.payment_method} label={o.payment_label} />
             </div>
             <div style={{ fontSize: 11.5, color: 'var(--ink-muted)', display: 'flex', justifyContent: 'space-between' }}>
               <span>{o.id} / {o.customer_name}</span>
@@ -167,6 +169,14 @@ export function OrderTracker({ orders, selectedOrderId, onSelectOrder, onRefresh
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                 <OrderTypeBadge isPartner={order.store_is_partner} />
                 <StatusBadge status={order.status} orderType={order.order_type} />
+                <PaymentBadge
+                  method={order.payment_method}
+                  label={order.payment_label}
+                  status={order.payment_status}
+                />
+                {order.billing_profile === 'business' && (
+                  <span className="badge badge-info">ビジネス領収書</span>
+                )}
                 <span className="badge badge-neutral tabular-nums">注文番号 {order.id}</span>
               </div>
               <h2 style={{ margin: 0, fontSize: 21, fontWeight: 800 }}>{order.store_name}</h2>
@@ -182,6 +192,23 @@ export function OrderTracker({ orders, selectedOrderId, onSelectOrder, onRefresh
               </button>
             )}
           </div>
+
+          {order.payment_method === 'cash' && !['delivered', 'cancelled'].includes(order.status) && (
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: 12,
+                background: '#fffbeb',
+                border: '1px solid #f59e0b',
+                color: '#92400e',
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              現金払い（代金引換）：商品受け取り時にドライバーへ{' '}
+              <strong className="tabular-nums">{formatYen(order.total_amount)}</strong> を現金でお支払いください（対面手渡し）。
+            </div>
+          )}
 
           {order.status !== 'cancelled' ? (
             <div className="stepper">
@@ -352,9 +379,37 @@ export function OrderTracker({ orders, selectedOrderId, onSelectOrder, onRefresh
                   <span className="tabular-nums">{formatYen(order.tip_amount)}</span>
                 </div>
               )}
+              {order.discount_amount > 0 && (
+                <div className="price-line" style={{ color: 'var(--brand-green)', fontWeight: 700 }}>
+                  <span>
+                    割引{order.voucher_code ? `（${order.voucher_code}）` : '（残高・バウチャー）'}
+                  </span>
+                  <span className="tabular-nums">-{formatYen(order.discount_amount)}</span>
+                </div>
+              )}
               <div className="price-line total">
                 <span>お支払い合計</span>
                 <span className="tabular-nums">{formatYen(order.total_amount)}</span>
+              </div>
+              <div
+                style={{
+                  marginTop: 8,
+                  paddingTop: 8,
+                  borderTop: '1px dashed var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  fontSize: 12,
+                }}
+              >
+                <span style={{ color: 'var(--ink-muted)' }}>決済方法</span>
+                <PaymentBadge
+                  method={order.payment_method}
+                  label={order.payment_label}
+                  status={order.payment_status}
+                />
               </div>
             </div>
           </div>

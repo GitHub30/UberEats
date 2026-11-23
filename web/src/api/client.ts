@@ -124,7 +124,13 @@ export const api = {
     }),
   proxyConfirmPurchase: (
     id: string,
-    payload: { actual_subtotal: number; receipt_image_url?: string; receipt_note?: string; driver_id?: string }
+    payload: {
+      actual_subtotal: number;
+      receipt_image_url?: string;
+      receipt_note?: string;
+      driver_id?: string;
+      driver_store_payment_method?: 'proxy_card' | 'cash' | 'paypay' | 'suica';
+    }
   ) =>
     apiFetch<{ order: Order }>(`/api/orders/${id}/proxy-confirm-purchase`, {
       method: 'POST',
@@ -235,7 +241,11 @@ export async function compressImageFile(file: File, maxDim = 960): Promise<strin
 }
 
 /** Generates a crisp realistic Japanese paper takeout receipt image on canvas for instant KV upload testing */
-export function generateReceiptDataUrl(order: Order, actualSubtotal: number): string {
+export function generateReceiptDataUrl(
+  order: Order,
+  actualSubtotal: number,
+  storePayLabel = 'MachiEats 代理決済プリペイドカード（済）'
+): string {
   const canvas = document.createElement('canvas');
   canvas.width = 480;
   canvas.height = 640;
@@ -319,7 +329,7 @@ export function generateReceiptDataUrl(order: Order, actualSubtotal: number): st
   ctx.textAlign = 'left';
   ctx.fillStyle = '#068449';
   ctx.font = 'bold 13px "Noto Sans JP", sans-serif';
-  ctx.fillText('決済方法: MachiEats 代理決済プリペイドカード（済）', 54, y);
+  ctx.fillText(`店頭決済: ${storePayLabel}`, 54, y);
 
   // Stamp
   ctx.strokeStyle = '#C85A17';

@@ -2,10 +2,10 @@
    Driver Delivery App (Outdoor High-Contrast Dark Mode)
    ========================================================= */
 .driver-shell {
-  min-height: calc(100vh - 50px);
+  min-height: 100vh;
   background: var(--drv-bg);
   color: var(--drv-ink);
-  padding: 20px 20px 80px;
+  padding: max(20px, env(safe-area-inset-top, 20px)) 20px 80px;
 }
 
 .driver-container {

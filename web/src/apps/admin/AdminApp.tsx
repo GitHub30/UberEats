@@ -12,8 +12,10 @@ import {
   X,
   ArrowUpRight,
   CreditCard,
+  Download,
 } from 'lucide-react';
 import { api, formatTime, formatYen } from '../../api/client';
+import { PaymentBadge, PaymentLogo, paymentMethodDisplay } from '../../components/PaymentBadge';
 import { OrderTypeBadge, StatusBadge, vehicleLabel } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toast';
 import { useModalA11y } from '../../hooks/useModalA11y';
@@ -60,14 +62,42 @@ function AdminInspectModal({
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <OrderTypeBadge isPartner={order.store_is_partner} />
             <StatusBadge status={order.status} orderType={order.order_type} />
+            <PaymentBadge
+              method={order.payment_method}
+              label={order.payment_label}
+              status={order.payment_status}
+            />
+            {order.billing_profile === 'business' && <span className="badge badge-info">ビジネス領収書</span>}
           </div>
 
-          <div style={{ fontSize: 13.5 }}>
+          <div style={{ fontSize: 13.5, lineHeight: 1.7 }}>
             <strong>店舗：</strong>
             {order.store_name}（{order.store_address}）
             <br />
             <strong>お客様：</strong>
             {order.customer_name} ／ {order.delivery_address}
+            <br />
+            <strong>お支払い合計：</strong>
+            <span className="tabular-nums">{formatYen(order.total_amount)}</span>
+            {order.discount_amount > 0 && (
+              <span>
+                （割引 -{formatYen(order.discount_amount)}
+                {order.voucher_code ? ` / ${order.voucher_code}` : ''}）
+              </span>
+            )}
+            {order.order_type === 'proxy_takeout' && (
+              <>
+                <br />
+                <strong>ドライバー店頭決済手段：</strong>
+                {order.driver_store_payment_method === 'cash'
+                  ? '現金立替'
+                  : order.driver_store_payment_method === 'paypay'
+                  ? 'PayPay'
+                  : order.driver_store_payment_method === 'suica'
+                  ? 'モバイルSuica'
+                  : 'MachiEats代理カード'}
+              </>
+            )}
           </div>
 
           {order.receipt_image_url && (
@@ -145,7 +175,12 @@ function AdminInspectModal({
 
 type AdminTab = 'overview' | 'orders' | 'stores' | 'drivers' | 'settings';
 
-export function AdminApp() {
+export interface AdminAppProps {
+  canInstallPwa?: boolean;
+  onInstallPwa?: () => void;
+}
+
+export function AdminApp({ canInstallPwa = false, onInstallPwa }: AdminAppProps = {}) {
   const { notify } = useToast();
   const [tab, setTab] = useState<AdminTab>('overview');
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
@@ -362,7 +397,13 @@ export function AdminApp() {
           手数料・報酬設定
         </button>
 
-        <div style={{ marginTop: 'auto', paddingTop: 20 }}>
+        <div style={{ marginTop: 'auto', paddingTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {canInstallPwa && onInstallPwa && (
+            <button type="button" className="btn btn-dark btn-sm btn-block" onClick={onInstallPwa}>
+              <Download size={14} aria-hidden="true" />
+              管理アプリを追加
+            </button>
+          )}
           <button type="button" className="btn btn-outline btn-sm btn-block" onClick={() => void handleResetDemo()}>
             <RotateCcw size={14} />
             デモデータを初期化
@@ -475,6 +516,71 @@ export function AdminApp() {
                 </div>
               </div>
             </div>
+
+            {/* Payment Method Breakdown Card */}
+            <div className="admin-card">
+              <h2>決済手段別内訳（現金・クレジットカード・PayPay・Suica等）</h2>
+              {(analytics?.payment_breakdown || []).length === 0 ? (
+                <div style={{ fontSize: 13, color: 'var(--ink-muted)' }}>集計対象の注文がまだありません。</div>
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                    gap: 12,
+                  }}
+                >
+                  {(analytics?.payment_breakdown || []).map((row) => {
+                    const pct = Math.round((row.total_amount / Math.max(1, summary.total_gmv)) * 100);
+                    return (
+                      <div
+                        key={row.payment_method}
+                        style={{
+                          padding: 14,
+                          borderRadius: 12,
+                          border: '1px solid var(--border-subtle)',
+                          background: 'var(--bg-canvas)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 13.5 }}>
+                            <PaymentLogo type={row.payment_method} />
+                            <span>{paymentMethodDisplay(row.payment_method)}</span>
+                          </div>
+                          <span className="badge badge-neutral tabular-nums">{row.count}件</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                          <strong className="tabular-nums" style={{ fontSize: 18 }}>
+                            {formatYen(row.total_amount)}
+                          </strong>
+                          <span className="tabular-nums" style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
+                            GMV比 {pct}%
+                          </span>
+                        </div>
+                        <div className="bar-track" style={{ height: 6 }}>
+                          <div
+                            style={{
+                              width: `${Math.max(4, pct)}%`,
+                              background:
+                                row.payment_method === 'paypay'
+                                  ? '#ff0033'
+                                  : row.payment_method === 'suica'
+                                  ? '#009f4d'
+                                  : row.payment_method === 'cash'
+                                  ? '#d97706'
+                                  : '#141413',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </>
         )}
 
@@ -514,6 +620,7 @@ export function AdminApp() {
                     <th>注文ID</th>
                     <th>種別</th>
                     <th>店舗 / お客様</th>
+                    <th>決済方法</th>
                     <th>ステータス</th>
                     <th>担当ドライバー</th>
                     <th>金額（目安 / 実費）</th>
@@ -536,11 +643,28 @@ export function AdminApp() {
                         <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{o.customer_name}様</div>
                       </td>
                       <td>
+                        <PaymentBadge
+                          method={o.payment_method}
+                          label={o.payment_label}
+                          status={o.payment_status}
+                        />
+                        {o.billing_profile === 'business' && (
+                          <div style={{ fontSize: 11, color: '#1d63b8', marginTop: 3, fontWeight: 700 }}>
+                            ビジネス領収書
+                          </div>
+                        )}
+                      </td>
+                      <td>
                         <StatusBadge status={o.status} orderType={o.order_type} />
                       </td>
                       <td>{o.driver_name || <span style={{ color: 'var(--ink-muted)' }}>未割当</span>}</td>
                       <td className="tabular-nums">
                         <strong>{formatYen(o.total_amount)}</strong>
+                        {o.discount_amount > 0 && (
+                          <div style={{ fontSize: 11, color: 'var(--brand-green)' }}>
+                            割引 -{formatYen(o.discount_amount)}
+                          </div>
+                        )}
                         {o.order_type === 'proxy_takeout' && (
                           <div style={{ fontSize: 11.5, color: o.price_diff !== 0 ? 'var(--proxy-amber)' : 'var(--ink-muted)' }}>
                             {o.actual_subtotal !== null

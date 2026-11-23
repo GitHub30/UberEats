@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   ShoppingBag,
   Bike,
@@ -10,55 +9,67 @@ import {
   Database,
   HelpCircle,
   Star,
+  Download,
 } from 'lucide-react';
 import { resolveAssetUrl } from '../api/client';
 import { OrderTypeBadge } from '../components/StatusBadge';
+import { PaymentLogo } from '../components/PaymentBadge';
 import {
   BASE_PATH,
   FAQ_ENTRIES,
   FEATURED_STORES,
   HOWTO_STEPS,
   routeToPath,
-  type AppRoute,
 } from '../seo/routes';
 
-export function HomePortal({ onNavigate }: { onNavigate: (route: AppRoute, search?: string) => void }) {
-  const handleLink = (e: React.MouseEvent<HTMLAnchorElement>, route: AppRoute, search = '') => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-    e.preventDefault();
-    onNavigate(route, search);
-  };
+interface HomePortalProps {
+  canInstallPwa?: boolean;
+  onInstallPwa?: () => void;
+}
 
+export function HomePortal({ canInstallPwa, onInstallPwa }: HomePortalProps) {
   return (
     <main className="portal-wrap animate-fade">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontWeight: 800, fontSize: 18 }}>
+          <span className="switcher-brand-mark" aria-hidden="true">M</span>
+          <span>MachiEats プラットフォーム</span>
+        </div>
+        {canInstallPwa && onInstallPwa && (
+          <button type="button" className="btn btn-primary btn-sm" onClick={onInstallPwa}>
+            <Download size={14} aria-hidden="true" />
+            ポータルをPWA追加
+          </button>
+        )}
+      </div>
+
       <section className="portal-hero" aria-labelledby="portal-hero-title">
         <div className="portal-hero-copy">
-          <span className="portal-hero-eyebrow">PWA • Cloudflare Workers + D1 + KV</span>
+          <span className="portal-hero-eyebrow">4 Independent PWAs • Cloudflare D1 + KV</span>
           <h1 id="portal-hero-title">
             街のすべてのお店から、
             <br />
             できたてを玄関先へ。
           </h1>
           <p>
-            MachiEats（まちイーツ）は、公式提携レストランからの配達に加え、デリバリー非提携の町中華や行列ラーメン店も
-            ドライバーが店舗へ足を運び<strong>持ち帰り（テイクアウト）を代理注文・代理決済</strong>してお届けするフードデリバリーPWAです。
+            公式提携レストランからの配達に加え、デリバリー非提携の町中華や行列ラーメン店も
+            ドライバーが店舗へ足を運び<strong>持ち帰り（テイクアウト）を代理注文</strong>してお届け。
+            注文・ドライバー・店舗受注・管理画面はそれぞれ独立したPWAアプリとして起動・インストールできます。
           </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <PaymentLogo type="credit_card" brand="visa" />
+            <PaymentLogo type="cash" />
+            <PaymentLogo type="paypay" />
+            <PaymentLogo type="suica" />
+            <PaymentLogo type="apple_pay" />
+            <span style={{ fontSize: 12, color: '#d6d3cb', fontWeight: 700 }}>現金・クレカ・PayPay・Suica対応</span>
+          </div>
           <div className="portal-hero-actions">
-            <a
-              href={routeToPath('customer')}
-              className="btn btn-primary btn-lg"
-              style={{ textDecoration: 'none' }}
-              onClick={(e) => handleLink(e, 'customer')}
-            >
+            <a href={routeToPath('customer')} className="btn btn-primary btn-lg" style={{ textDecoration: 'none' }}>
               <ShoppingBag size={18} aria-hidden="true" />
-              注文アプリを試す
+              注文アプリを開く
             </a>
-            <a
-              href={routeToPath('driver')}
-              className="btn btn-proxy btn-lg"
-              style={{ textDecoration: 'none' }}
-              onClick={(e) => handleLink(e, 'driver')}
-            >
+            <a href={routeToPath('driver')} className="btn btn-proxy btn-lg" style={{ textDecoration: 'none' }}>
               <Bike size={18} aria-hidden="true" />
               ドライバーアプリを開く
             </a>
@@ -77,96 +88,74 @@ export function HomePortal({ onNavigate }: { onNavigate: (route: AppRoute, searc
       </section>
 
       <div className="portal-section-title">
-        <h2>4つの専用アプリケーション</h2>
+        <h2>4つの独立した専用PWAアプリ</h2>
         <span style={{ fontSize: 13, color: 'var(--ink-muted)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <Database size={14} aria-hidden="true" />
-          すべての注文・在庫・レシート画像・チャットは Cloudflare D1 / KV に永続化されます
+          各アプリは共通ヘッダーなしで独立稼働し、Cloudflare D1 / KV を通じてリアルタイム連動します
         </span>
       </div>
 
-      <section className="portal-apps-grid" aria-label="4つのアプリケーション一覧">
-        <a
-          href={routeToPath('customer')}
-          className="portal-app-card"
-          style={{ textDecoration: 'none', color: 'inherit' }}
-          onClick={(e) => handleLink(e, 'customer')}
-        >
+      <section className="portal-apps-grid" aria-label="4つの独立アプリケーション一覧">
+        <a href={routeToPath('customer')} className="portal-app-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="portal-app-icon" style={{ background: 'var(--brand-green-soft)', color: 'var(--brand-green)' }}>
             <ShoppingBag size={22} aria-hidden="true" />
           </div>
           <h3>1. エンドユーザー注文アプリ</h3>
           <p>
-            提携店舗の注文に加え、非提携の街の名店や掲載外のお店も「持ち帰り代理注文」でリクエスト可能。配達マップ・レシート確認・ドライバーチャット対応。
+            提携店・非提携（持ち帰り代理注文）・掲載外店舗リクエスト対応。現金・クレジットカード・PayPay・Suica・バウチャー決済とリアルタイム配達追跡。
           </p>
           <span className="portal-app-cta">
-            注文アプリへ <ArrowRight size={15} aria-hidden="true" />
+            /customer/ を開く <ArrowRight size={15} aria-hidden="true" />
           </span>
         </a>
 
-        <a
-          href={routeToPath('driver')}
-          className="portal-app-card"
-          style={{ textDecoration: 'none', color: 'inherit' }}
-          onClick={(e) => handleLink(e, 'driver')}
-        >
+        <a href={routeToPath('driver')} className="portal-app-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="portal-app-icon" style={{ background: '#111417', color: '#10b981' }}>
             <Bike size={22} aria-hidden="true" />
           </div>
           <h3>2. ドライバー配達アプリ</h3>
           <p>
-            屋外視認性の高いダークUI。通常配達と高報酬な「店頭代理注文」を受諾し、持ち帰り注文リスト確認・実費入力・レシート写真アップロード・GPS更新を実行。
+            屋外高視認ダークUIの独立PWA。通常配達・高報酬な店頭代理注文の受諾、レシートKV保存、現金代引き回収、GPS位置更新に対応。
           </p>
           <span className="portal-app-cta">
-            ドライバーアプリへ <ArrowRight size={15} aria-hidden="true" />
+            /driver/ を開く <ArrowRight size={15} aria-hidden="true" />
           </span>
         </a>
 
-        <a
-          href={routeToPath('merchant')}
-          className="portal-app-card"
-          style={{ textDecoration: 'none', color: 'inherit' }}
-          onClick={(e) => handleLink(e, 'merchant')}
-        >
+        <a href={routeToPath('merchant')} className="portal-app-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="portal-app-icon" style={{ background: '#fef6e4', color: '#92400e' }}>
             <Store size={22} aria-hidden="true" />
           </div>
           <h3>3. 店舗受注タブレットアプリ</h3>
           <p>
-            提携店舗向けPOS画面。新規注文の調理時間指定つき受注・調理完了通知・営業／混雑切替・メニュー追加とワンタップ「売り切れ」同期に対応。
+            公式提携店舗専用POSアプリ。調理時間指定受注・調理完了通知・決済種別確認・営業／混雑切替・ワンタップ売り切れ同期。
           </p>
           <span className="portal-app-cta">
-            店舗受注アプリへ <ArrowRight size={15} aria-hidden="true" />
+            /merchant/ を開く <ArrowRight size={15} aria-hidden="true" />
           </span>
         </a>
 
-        <a
-          href={routeToPath('admin')}
-          className="portal-app-card"
-          style={{ textDecoration: 'none', color: 'inherit' }}
-          onClick={(e) => handleLink(e, 'admin')}
-        >
+        <a href={routeToPath('admin')} className="portal-app-card" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="portal-app-icon" style={{ background: 'var(--bg-subtle)', color: 'var(--ink-primary)' }}>
             <ShieldCheck size={22} aria-hidden="true" />
           </div>
           <h3>4. 運営管理画面アプリ</h3>
           <p>
-            GMV・提携／非提携比率の可視化、全注文のライブ監視、レシート実費監査、未掲載リクエスト店のカタログ昇格・提携切替、配達料や代理手数料の動的設定。
+            GMV・決済手段別比率の分析、全注文ライブ監視、レシート監査、未掲載リクエスト店の提携昇格、配達料・代理手数料の動的設定。
           </p>
           <span className="portal-app-cta">
-            管理画面へ <ArrowRight size={15} aria-hidden="true" />
+            /admin/ を開く <ArrowRight size={15} aria-hidden="true" />
           </span>
         </a>
       </section>
 
-      {/* Featured Restaurants matching ItemList/Restaurant JSON-LD 1:1 */}
       <div className="portal-section-title">
         <h2>注目の掲載レストラン（公式提携・非提携代理持ち帰り）</h2>
         <a
           href={routeToPath('customer')}
-          onClick={(e) => handleLink(e, 'customer')}
           style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--brand-green)', textDecoration: 'none' }}
         >
-          すべてのお店を見る →
+          注文アプリで全店舗を見る →
         </a>
       </div>
       <section className="portal-stores-strip" aria-label="掲載レストラン一覧">
@@ -175,7 +164,6 @@ export function HomePortal({ onNavigate }: { onNavigate: (route: AppRoute, searc
             key={s.id}
             href={`${routeToPath('customer')}?store=${encodeURIComponent(s.id)}`}
             className="portal-store-mini"
-            onClick={(e) => handleLink(e, 'customer', `?store=${encodeURIComponent(s.id)}`)}
           >
             <img
               src={resolveAssetUrl(s.image)}
@@ -224,19 +212,11 @@ export function HomePortal({ onNavigate }: { onNavigate: (route: AppRoute, searc
           ))}
         </div>
 
-        <div style={{ marginTop: 18, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <a
-            href={routeToPath('customer')}
-            className="btn btn-proxy btn-sm"
-            style={{ textDecoration: 'none' }}
-            onClick={(e) => handleLink(e, 'customer')}
-          >
+        <div style={{ marginTop: 18 }}>
+          <a href={routeToPath('customer')} className="btn btn-proxy btn-sm" style={{ textDecoration: 'none' }}>
             <Receipt size={15} aria-hidden="true" />
-            非提携のお店から注文してみる
+            注文アプリで非提携店を頼んでみる
           </a>
-          <span style={{ fontSize: 12, color: '#7c3208' }}>
-            ヒント：上部の「別タブで開く」を使うと、注文アプリとドライバー／店舗アプリを並べてリアルタイム連携を体験できます。
-          </span>
         </div>
       </section>
 
@@ -263,9 +243,8 @@ export function HomePortal({ onNavigate }: { onNavigate: (route: AppRoute, searc
                 <td>ドライバーが店頭カウンター・券売機で持ち帰り購入</td>
               </tr>
               <tr>
-                <td><strong>標準料金（デフォルト）</strong></td>
-                <td>基本配達料 ¥320 ＋ サービス料 10%</td>
-                <td>基本配達料 ¥320 ＋ サービス料 10% ＋ 店頭代理注文手数料 ¥250</td>
+                <td><strong>対応決済手段</strong></td>
+                <td colSpan={2}>現金（代引き）・クレジットカード（Visa/Mastercard/JCB/Amex）・PayPay・モバイルSuica・Apple Pay・楽天ペイ・d払い</td>
               </tr>
               <tr>
                 <td><strong>価格確定・レシート証跡</strong></td>
@@ -304,10 +283,10 @@ export function HomePortal({ onNavigate }: { onNavigate: (route: AppRoute, searc
           <strong>MachiEats</strong> — 渋谷・恵比寿・中目黒・代官山・表参道・六本木対応フードデリバリーPWA（Cloudflare Workers / D1 / KV）
         </div>
         <nav className="site-footer-links" aria-label="フッターリンク">
-          <a href={routeToPath('customer')} onClick={(e) => handleLink(e, 'customer')}>注文アプリ</a>
-          <a href={routeToPath('driver')} onClick={(e) => handleLink(e, 'driver')}>ドライバー</a>
-          <a href={routeToPath('merchant')} onClick={(e) => handleLink(e, 'merchant')}>店舗POS</a>
-          <a href={routeToPath('admin')} onClick={(e) => handleLink(e, 'admin')}>管理画面</a>
+          <a href={routeToPath('customer')}>注文アプリ</a>
+          <a href={routeToPath('driver')}>ドライバー</a>
+          <a href={routeToPath('merchant')}>店舗POS</a>
+          <a href={routeToPath('admin')}>管理画面</a>
           <a href={`${BASE_PATH}/llms.txt`}>llms.txt</a>
           <a href={`${BASE_PATH}/llms-full.txt`}>llms-full.txt</a>
           <a href={`${BASE_PATH}/sitemap.xml`}>sitemap.xml</a>

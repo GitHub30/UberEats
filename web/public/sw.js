@@ -6,8 +6,15 @@ const BASE_PATH = '/UberEats';
 const PRECACHE_STATIC = [
   `${BASE_PATH}/offline.html`,
   `${BASE_PATH}/manifest.webmanifest`,
+  `${BASE_PATH}/customer/manifest.webmanifest`,
+  `${BASE_PATH}/driver/manifest.webmanifest`,
+  `${BASE_PATH}/merchant/manifest.webmanifest`,
+  `${BASE_PATH}/admin/manifest.webmanifest`,
   `${BASE_PATH}/icons/icon-192.png`,
   `${BASE_PATH}/icons/icon-512.png`,
+  `${BASE_PATH}/icons/driver-192.png`,
+  `${BASE_PATH}/icons/merchant-192.png`,
+  `${BASE_PATH}/icons/admin-192.png`,
   `${BASE_PATH}/images/hero.webp`,
   /* __VITE_ASSETS__ */
 ];
@@ -81,7 +88,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Navigation requests: Network-first, fallback explicitly to PAGE_CACHE then offline.html
+  // Navigation requests: Network-first, fallback explicitly to the matching app page, then root, then offline.html
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -95,8 +102,12 @@ self.addEventListener('fetch', (event) => {
         .catch(async () => {
           const pageCache = await caches.open(PAGE_CACHE);
           const staticCache = await caches.open(STATIC_CACHE);
+          const appScope = ['customer', 'driver', 'merchant', 'admin'].find((a) =>
+            url.pathname.toLowerCase().startsWith(`${BASE_PATH.toLowerCase()}/${a}`)
+          );
           const hit =
             (await pageCache.match(request, { ignoreSearch: true })) ||
+            (appScope ? await pageCache.match(`${BASE_PATH}/${appScope}/`) : null) ||
             (await pageCache.match(`${BASE_PATH}/`)) ||
             (await staticCache.match(`${BASE_PATH}/offline.html`));
           return hit || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });

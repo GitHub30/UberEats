@@ -11,13 +11,20 @@ import {
   RefreshCw,
   XCircle,
   Trash2,
+  Download,
 } from 'lucide-react';
 import { api, formatTime, formatYen } from '../../api/client';
+import { PaymentBadge } from '../../components/PaymentBadge';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useToast } from '../../components/Toast';
 import type { MenuItem, Order, Store } from '../../types';
 
-export function MerchantApp() {
+export interface MerchantAppProps {
+  canInstallPwa?: boolean;
+  onInstallPwa?: () => void;
+}
+
+export function MerchantApp({ canInstallPwa = false, onInstallPwa }: MerchantAppProps = {}) {
   const { notify } = useToast();
   const [partnerStores, setPartnerStores] = useState<Store[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string>('store-wagyu-burger');
@@ -243,6 +250,13 @@ export function MerchantApp() {
               </button>
             </div>
 
+            {canInstallPwa && onInstallPwa && (
+              <button type="button" className="btn btn-outline btn-sm" onClick={onInstallPwa}>
+                <Download size={14} aria-hidden="true" />
+                アプリ追加
+              </button>
+            )}
+
             <button
               type="button"
               className="btn btn-outline btn-sm"
@@ -290,8 +304,11 @@ export function MerchantApp() {
                       <span className="pos-order-code tabular-nums">#{o.order_code}</span>
                       <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>{formatTime(o.created_at)}</span>
                     </div>
-                    <div style={{ fontSize: 12.5, fontWeight: 700 }}>
-                      お客様：{o.customer_name}様 ・ <span className="tabular-nums">{formatYen(o.estimated_subtotal)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 700 }}>
+                        お客様：{o.customer_name}様 ・ <span className="tabular-nums">{formatYen(o.estimated_subtotal)}</span>
+                      </span>
+                      <PaymentBadge method={o.payment_method} label={o.payment_label} status={o.payment_status} />
                     </div>
                     <ul className="pos-items">
                       {o.items.map((it, idx) => (
@@ -363,8 +380,11 @@ export function MerchantApp() {
                       <span className="pos-order-code tabular-nums">#{o.order_code}</span>
                       <span className="badge badge-info">目安 {o.estimated_prep_min || 15}分</span>
                     </div>
-                    <div style={{ fontSize: 12.5 }}>
-                      ドライバー：<strong>{o.driver_name || 'ドライバー手配中...'}</strong>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12.5 }}>
+                        ドライバー：<strong>{o.driver_name || 'ドライバー手配中...'}</strong>
+                      </span>
+                      <PaymentBadge method={o.payment_method} label={o.payment_label} status={o.payment_status} />
                     </div>
                     <ul className="pos-items">
                       {o.items.map((it, idx) => (
@@ -411,8 +431,11 @@ export function MerchantApp() {
                       <span className="pos-order-code tabular-nums">#{o.order_code}</span>
                       <StatusBadge status={o.status} orderType={o.order_type} />
                     </div>
-                    <div style={{ fontSize: 13 }}>
-                      担当ドライバー：<strong>{o.driver_name || '割当待ち'}</strong>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 13 }}>
+                        担当ドライバー：<strong>{o.driver_name || '割当待ち'}</strong>
+                      </span>
+                      <PaymentBadge method={o.payment_method} label={o.payment_label} status={o.payment_status} />
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>
                       {o.items.map((it) => `${it.name}×${it.quantity}`).join('、')}
